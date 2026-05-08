@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.next/
+.env
+.env.local
+*.log
+
+# SQLite (모든 위치)
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Next.js / build
+*.tsbuildinfo
+next-env.d.ts

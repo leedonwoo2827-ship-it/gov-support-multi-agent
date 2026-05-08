@@ -1,0 +1,13 @@
+{
+  "agent_id": "doc-checklist",
+  "name": "서류 체크리스트",
+  "role": "공고가 요구하는 필수/선택/권장 서류 목록을 추출하고 보유 상태를 분류한다.",
+  "model": "claude-haiku-4-5-20251001",
+  "max_tokens": 3072,
+  "temperature": 0.1,
+  "system_prompt_path": "prompts/doc-checklist.ko.md",
+  "tool_names": ["generateDocumentChecklist"],
+  "depends_on": [],
+  "output_schema": "ChecklistPost",
+  "post_title_template": "[서류체크리스트] {programTitle}"
+}

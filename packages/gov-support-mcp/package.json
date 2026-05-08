@@ -1,0 +1,25 @@
+{
+  "name": "@gov/mcp-tools",
+  "version": "1.2.3",
+  "description": "정부지원사업 도구 라이브러리 (14개 tool)",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tools": "./src/govSupport/tools/index.ts",
+    "./clients": "./src/govSupport/clients/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
+}

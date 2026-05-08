@@ -1,0 +1,20 @@
+{
+  "name": "gov-support-multi-agent",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter='!@gov/mcp-tools' run dev",
+    "dev:orchestrator": "pnpm --filter @gov/orchestrator dev",
+    "dev:web": "pnpm --filter @gov/web dev",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "seed": "pnpm --filter @gov/orchestrator run seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

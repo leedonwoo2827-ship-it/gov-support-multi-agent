@@ -1,0 +1,13 @@
+{
+  "agent_id": "plan-draft",
+  "name": "사업계획서 초안",
+  "role": "PSST(문제·해결·성장·팀) 4섹션 사업계획서 한국어 초안을 작성한다.",
+  "model": "claude-sonnet-4-6",
+  "max_tokens": 6144,
+  "temperature": 0.4,
+  "system_prompt_path": "prompts/plan-draft.ko.md",
+  "tool_names": ["draftBusinessPlan"],
+  "depends_on": [],
+  "output_schema": "PlanDraftPost",
+  "post_title_template": "[사업계획서] {programTitle}"
+}

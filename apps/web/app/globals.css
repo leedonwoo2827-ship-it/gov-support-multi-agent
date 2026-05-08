@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+html, body { background: #f5f7fa; color: #1a1a1a; }
+body { font-family: 'Pretendard', system-ui, -apple-system, sans-serif; }
+
+.gov-card { background: white; border: 1px solid #dde2e8; border-radius: 6px; }
+.gov-btn { background: #003478; color: white; padding: 8px 16px; border-radius: 4px; font-weight: 500; }
+.gov-btn:hover { background: #0073e6; }
+.gov-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+.gov-btn-sub { background: white; border: 1px solid #003478; color: #003478; padding: 6px 12px; border-radius: 4px; }
+.gov-btn-sub:hover { background: #f0f4ff; }
+
+.status-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500;
+}
+.status-running { background: #fef3c7; color: #b45309; }
+.status-completed { background: #d1fae5; color: #065f46; }
+.status-failed { background: #fee2e2; color: #991b1b; }
+.status-queued { background: #e2e8f0; color: #475569; }

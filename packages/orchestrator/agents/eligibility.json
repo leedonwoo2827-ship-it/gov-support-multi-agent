@@ -1,0 +1,13 @@
+{
+  "agent_id": "eligibility",
+  "name": "자격평가",
+  "role": "정부지원 공고와 회사 프로파일을 대조해 자격 충족 여부와 심사 점수를 판정한다.",
+  "model": "claude-sonnet-4-6",
+  "max_tokens": 4096,
+  "temperature": 0.2,
+  "system_prompt_path": "prompts/eligibility.ko.md",
+  "tool_names": ["checkEligibility", "evaluateStartupApplication"],
+  "depends_on": [],
+  "output_schema": "EligibilityPost",
+  "post_title_template": "[자격평가] {programTitle}"
+}

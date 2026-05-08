@@ -1,0 +1,13 @@
+{
+  "agent_id": "milestone",
+  "name": "단계별 마일스톤 일정표",
+  "role": "마감일 역산으로 D-30 / D-14 / D-7 / D-1 / 제출일 마일스톤 일정을 생성한다.",
+  "model": "claude-haiku-4-5-20251001",
+  "max_tokens": 3072,
+  "temperature": 0.1,
+  "system_prompt_path": "prompts/milestone.ko.md",
+  "tool_names": ["buildApplicationTimeline"],
+  "depends_on": [],
+  "output_schema": "SchedulePost",
+  "post_title_template": "[마일스톤] {programTitle}"
+}
