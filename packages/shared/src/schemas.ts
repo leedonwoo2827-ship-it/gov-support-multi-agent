@@ -59,29 +59,29 @@ export type SearchFilters = z.infer<typeof SearchFiltersSchema>;
 export const EligibilityPostSchema = z.object({
   verdict: VerdictEnum,
   score: z.number().min(0).max(100),
-  matchedCriteria: z.array(z.string()),
-  unmetCriteria: z.array(z.string()),
-  uncertain: z.array(z.string()),
+  matchedCriteria: z.array(z.string()).default([]),
+  unmetCriteria: z.array(z.string()).default([]),
+  uncertain: z.array(z.string()).default([]),
   axes: z.array(z.object({
     name: z.string(),
     score: z.number(),
     max: z.number(),
     comment: z.string(),
   })).default([]),
-  riskFlags: z.array(z.string()),
-  recommendation: z.string(),
-  reasoning: z.string(),
+  riskFlags: z.array(z.string()).default([]),
+  recommendation: z.string().default(""),
+  reasoning: z.string().default(""),
 });
 export type EligibilityPost = z.infer<typeof EligibilityPostSchema>;
 
 // ── 에이전트 2: 사업계획서 초안 ─────────────────────────────────────
 export const PlanDraftPostSchema = z.object({
-  problem: z.string(),
-  solution: z.string(),
-  scaleUp: z.string(),
-  team: z.string(),
-  summary3line: z.string(),
-  wordCount: z.number(),
+  problem: z.string().default(""),
+  solution: z.string().default(""),
+  scaleUp: z.string().default(""),
+  team: z.string().default(""),
+  summary3line: z.string().default(""),
+  wordCount: z.number().default(0),
   warnings: z.array(z.string()).default([]),
 });
 export type PlanDraftPost = z.infer<typeof PlanDraftPostSchema>;
@@ -98,11 +98,11 @@ export const DocItemSchema = z.object({
 export type DocItem = z.infer<typeof DocItemSchema>;
 
 export const ChecklistPostSchema = z.object({
-  required: z.array(DocItemSchema),
-  optional: z.array(DocItemSchema),
-  recommended: z.array(DocItemSchema),
-  blockers: z.array(z.string()),
-  submissionMethod: z.string(),
+  required: z.array(DocItemSchema).default([]),
+  optional: z.array(DocItemSchema).default([]),
+  recommended: z.array(DocItemSchema).default([]),
+  blockers: z.array(z.string()).default([]),
+  submissionMethod: z.string().default("공고 포털 온라인 접수"),
   portalUrl: z.string().optional(),
 });
 export type ChecklistPost = z.infer<typeof ChecklistPostSchema>;
