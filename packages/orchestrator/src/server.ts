@@ -1,5 +1,6 @@
 // orchestrator — Hono REST API + SSE
 import "dotenv/config";
+import { networkInterfaces } from "node:os";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -61,8 +62,27 @@ app.route("/api/export", exportRoute);
 app.route("/api/settings", settingsRoute);
 app.route("/api/admin", adminRoute);
 
+function getLanIps(): string[] {
+  const ips: string[] = [];
+  for (const list of Object.values(networkInterfaces())) {
+    for (const iface of list ?? []) {
+      if (iface.family === "IPv4" && !iface.internal) ips.push(iface.address);
+    }
+  }
+  return ips;
+}
+
 const port = Number(process.env.ORCHESTRATOR_PORT ?? 8787);
 serve({ fetch: app.fetch, port }, ({ port }) => {
-  console.log(`▲ orchestrator listening on http://localhost:${port}`);
-  console.log(`▲ DB path: ${process.env.DB_PATH ?? "./data/gov.db"}`);
+  const lans = getLanIps();
+  console.log("");
+  console.log("┌─ orchestrator (정부지원 멀티에이전트 API)");
+  console.log(`│  Local    : http://localhost:${port}`);
+  for (const ip of lans) {
+    console.log(`│  Network  : http://${ip}:${port}`);
+  }
+  console.log(`│  DB       : ${process.env.DB_PATH ?? "./data/gov.db"}`);
+  console.log(`│  Mock     : ${process.env.ANTHROPIC_API_KEY ? "off (실 Claude 호출)" : "on (키 없음 — 더미 응답)"}`);
+  console.log("└──────────────────────────────────────────────");
+  console.log("");
 });
