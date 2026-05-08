@@ -161,10 +161,14 @@ export const CaseSchema = z.object({
 export type Case = z.infer<typeof CaseSchema>;
 
 // ── 에이전트 정의 (sonol-style) ─────────────────────────────────────
+export const ProviderEnum = z.enum(["anthropic", "gemini"]);
+export type Provider = z.infer<typeof ProviderEnum>;
+
 export const AgentDefinitionSchema = z.object({
   agent_id: AgentIdEnum,
   name: z.string(),
   role: z.string(),
+  provider: ProviderEnum.default("anthropic"),
   model: z.string(),
   max_tokens: z.number().int().default(4096),
   temperature: z.number().min(0).max(1).default(0.2),

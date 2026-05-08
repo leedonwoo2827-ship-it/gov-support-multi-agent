@@ -43,20 +43,41 @@ if (result.announcements.length === 0) {
   process.exit(1);
 }
 
-const programs: Program[] = result.announcements.map((a) => ({
-  id: `${a.source}:${a.programId}`,
-  source: a.source,
-  programId: a.programId,
-  title: a.title,
-  agency: a.agency ?? null,
-  region: a.region ?? null,
-  industry: a.industry ?? null,
-  field: a.field ?? null,
-  deadline: a.deadline ?? null,
-  url: a.url ?? null,
-  summary: a.summary ?? null,
-  rawText: a.rawText ?? a.summary ?? a.title,
-}));
+function normalizeDate(d: string | null | undefined): string | null {
+  if (!d) return null;
+  const s = String(d).trim();
+  if (!s) return null;
+  if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  if (/^\d{4}[-/.]\d{2}[-/.]\d{2}/.test(s)) return s.slice(0, 10).replace(/[/.]/g, "-");
+  const t = Date.parse(s);
+  if (!Number.isNaN(t)) return new Date(t).toISOString().slice(0, 10);
+  return null;
+}
+
+const programs: Program[] = result.announcements
+  .filter(a => a.source && a.announcementId && a.title)
+  .map((a) => {
+    const prefix = `${a.source}:`;
+    const programId = a.announcementId.startsWith(prefix)
+      ? a.announcementId.slice(prefix.length)
+      : a.announcementId;
+    const raw = a.rawItem as Record<string, any>;
+    return {
+      id: a.announcementId,
+      source: a.source,
+      programId,
+      title: a.title,
+      agency: a.agency ?? null,
+      region: a.region ?? null,
+      industry: null,
+      field: a.field ?? null,
+      deadline: normalizeDate(a.deadline),
+      url: a.detailUrl ?? null,
+      summary: raw?.pblancNm || raw?.biz_pbanc_nm || null,
+      rawText: [raw?.pblancCn, raw?.pbanc_ctnt, a.title, a.agency, a.field, a.region]
+        .filter(Boolean).join("\n\n").slice(0, 5000) || a.title,
+    };
+  });
 
 const db = getDb();
 

@@ -2,6 +2,8 @@ import { ulid } from "../lib/ulid.js";
 import { getDb } from "../db/client.js";
 import type { Case } from "@gov/shared";
 
+export type { Case };
+
 function rowToCase(r: any): Case {
   return {
     id: r.id,

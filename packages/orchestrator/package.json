@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.0",
+    "@google/generative-ai": "^0.24.0",
     "@gov/mcp-tools": "workspace:*",
     "@gov/shared": "workspace:*",
     "@hono/node-server": "^1.13.0",

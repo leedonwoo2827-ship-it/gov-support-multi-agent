@@ -4,12 +4,14 @@ import { getDb } from "../db/client.js";
 
 export type SettingKey =
   | "ANTHROPIC_API_KEY"
+  | "GEMINI_API_KEY"
   | "PUBLIC_DATA_SERVICE_KEY"
   | "BIZINFO_API_KEY"
   | "SMES24_API_KEY";
 
 export const SETTING_KEYS: SettingKey[] = [
   "ANTHROPIC_API_KEY",
+  "GEMINI_API_KEY",
   "PUBLIC_DATA_SERVICE_KEY",
   "BIZINFO_API_KEY",
   "SMES24_API_KEY",
@@ -27,9 +29,16 @@ export const SETTING_META: SettingMeta[] = [
   {
     key: "ANTHROPIC_API_KEY",
     label: "Anthropic API 키",
-    description: "Claude API. 미설정 시 mock 모드 자동 진입.",
+    description: "Claude API. 에이전트 JSON 의 provider:'anthropic' 일 때 사용.",
     example: "sk-ant-api03-XXXXXXXX-XXXX-XXXX...",
     source: "https://console.anthropic.com/",
+  },
+  {
+    key: "GEMINI_API_KEY",
+    label: "Google Gemini API 키",
+    description: "Gemini API. 에이전트 JSON 의 provider:'gemini' 일 때 사용. 무료 티어 가능.",
+    example: "AIzaSy...",
+    source: "https://aistudio.google.com/app/apikey",
   },
   {
     key: "PUBLIC_DATA_SERVICE_KEY",
@@ -110,4 +119,12 @@ export function getApiKeys() {
 
 export function getAnthropicKey(): string | undefined {
   return getSetting("ANTHROPIC_API_KEY");
+}
+
+export function getGeminiKey(): string | undefined {
+  return getSetting("GEMINI_API_KEY");
+}
+
+export function getLlmKey(provider: "anthropic" | "gemini"): string | undefined {
+  return provider === "anthropic" ? getAnthropicKey() : getGeminiKey();
 }

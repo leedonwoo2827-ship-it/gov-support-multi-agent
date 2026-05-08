@@ -91,32 +91,53 @@ ${program.rawText}
 export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
   const { caseId, agentId, profile, program } = input;
   const { def, systemPrompt } = getAgent(agentId);
-  const modelLabel = isMockMode() ? "mock" : def.model;
-  const run = createRun(caseId, agentId, modelLabel);
 
-  appendEvent({ caseId, runId: run.id, agentId, kind: "progress", payload: { stage: "started", model: modelLabel } });
-
-  // ── Mock 모드: ANTHROPIC_API_KEY 없을 때 결정론적 더미 응답 ────────
+  // ── Provider 분기 ─────────────────────────────────────────────────
+  // mock 우선 (둘 다 키 없으면), 그 다음 def.provider 에 따라 분기
   if (isMockMode()) {
-    try {
-      // 시연용 1.5~3초 인공 지연
-      await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
-      const payload = mockPayload(agentId, profile, program);
-      const schema = AGENT_PAYLOAD_SCHEMAS[agentId];
-      const parsed = schema.parse(payload);
-      completeRun(run.id, 0, 0, 0);
-      const title = def.post_title_template.replace("{programTitle}", program.title);
-      const bodyMd = buildBody(agentId, parsed);
-      const post = createPost({ caseId, runId: run.id, agentId, title, bodyMd, payload: parsed });
-      appendEvent({ caseId, runId: run.id, agentId, kind: "completion", payload: { postId: post.id, mock: true } });
-      return { run, postId: post.id, payload: parsed, ok: true };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      failRun(run.id, msg);
-      appendEvent({ caseId, runId: run.id, agentId, kind: "error", payload: { error: msg } });
-      return { run, postId: null, payload: null, ok: false, error: msg };
-    }
+    return runMockAgent(input, def, systemPrompt);
   }
+
+  if (def.provider === "gemini") {
+    const { runGeminiAgent } = await import("./runner-gemini.js");
+    return runGeminiAgent({
+      caseId, agentId, def, systemPrompt, profile, program,
+      userMessage: renderUserMessage(profile, program),
+      buildBody,
+    });
+  }
+
+  // 기본: Anthropic
+  return runAnthropicAgent(input, def, systemPrompt);
+}
+
+async function runMockAgent(input: RunAgentInput, def: any, _systemPrompt: string): Promise<RunAgentResult> {
+  const { caseId, agentId, profile, program } = input;
+  const run = createRun(caseId, agentId, "mock");
+  appendEvent({ caseId, runId: run.id, agentId, kind: "progress", payload: { stage: "started", model: "mock" } });
+  try {
+    await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
+    const payload = mockPayload(agentId, profile, program);
+    const schema = AGENT_PAYLOAD_SCHEMAS[agentId];
+    const parsed = schema.parse(payload);
+    completeRun(run.id, 0, 0, 0);
+    const title = def.post_title_template.replace("{programTitle}", program.title);
+    const bodyMd = buildBody(agentId, parsed);
+    const post = createPost({ caseId, runId: run.id, agentId, title, bodyMd, payload: parsed });
+    appendEvent({ caseId, runId: run.id, agentId, kind: "completion", payload: { postId: post.id, mock: true } });
+    return { run, postId: post.id, payload: parsed, ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    failRun(run.id, msg);
+    appendEvent({ caseId, runId: run.id, agentId, kind: "error", payload: { error: msg } });
+    return { run, postId: null, payload: null, ok: false, error: msg };
+  }
+}
+
+async function runAnthropicAgent(input: RunAgentInput, def: any, systemPrompt: string): Promise<RunAgentResult> {
+  const { caseId, agentId, profile, program } = input;
+  const run = createRun(caseId, agentId, def.model);
+  appendEvent({ caseId, runId: run.id, agentId, kind: "progress", payload: { stage: "started", model: def.model, provider: "anthropic" } });
 
   const client = getClient();
   const mcpTools = buildAnthropicTools(def.tool_names);

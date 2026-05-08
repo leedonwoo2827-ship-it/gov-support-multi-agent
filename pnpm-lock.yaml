@@ -70,6 +70,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.95.0
         version: 0.95.1(zod@3.25.76)
+      '@google/generative-ai':
+        specifier: ^0.24.0
+        version: 0.24.1
       '@gov/mcp-tools':
         specifier: workspace:*
         version: link:../gov-support-mcp
@@ -445,6 +448,10 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@google/generative-ai@0.24.1':
+    resolution: {integrity: sha512-MqO+MLfM6kjxcKoy0p1wRzG3b4ZZXtPI+z2IE26UogS2Cm/XHO+7gGRBh6gcJsOiIVoH93UwKvW4HdgiOZCy9Q==}
+    engines: {node: '>=18.0.0'}
 
   '@hono/node-server@1.19.14':
     resolution: {integrity: sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw==}
@@ -1659,6 +1666,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.7':
     optional: true
+
+  '@google/generative-ai@0.24.1': {}
 
   '@hono/node-server@1.19.14(hono@4.12.18)':
     dependencies:

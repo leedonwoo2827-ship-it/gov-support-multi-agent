@@ -2,11 +2,15 @@
 
 import type { AgentId, CompanyProfile, Program } from "@gov/shared";
 import { AGENT_PAYLOAD_SCHEMAS } from "@gov/shared";
-import { getAnthropicKey } from "../board/settings.js";
+import { getAnthropicKey, getGeminiKey } from "../board/settings.js";
 
+/**
+ * Mock 모드 진입 조건: MOCK_AGENTS=1 강제, OR Anthropic/Gemini 키 둘 다 없을 때.
+ * provider 별 분기는 runAgent 에서 함.
+ */
 export function isMockMode(): boolean {
   if (process.env.MOCK_AGENTS === "1") return true;
-  return !getAnthropicKey();
+  return !getAnthropicKey() && !getGeminiKey();
 }
 
 export function mockPayload(agentId: AgentId, profile: CompanyProfile, program: Program): unknown {
