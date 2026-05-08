@@ -32,20 +32,22 @@ router.post("/", zValidator("json", SearchFiltersSchema), async (c) => {
         },
         apiKeys,
       );
-      const programs: Program[] = apiResult.announcements.map((a) => ({
-        id: `${a.source}:${a.programId}`,
-        source: a.source,
-        programId: a.programId,
-        title: a.title,
-        agency: a.agency ?? null,
-        region: a.region ?? null,
-        industry: a.industry ?? null,
-        field: a.field ?? null,
-        deadline: a.deadline ?? null,
-        url: a.url ?? null,
-        summary: a.summary ?? null,
-        rawText: a.rawText ?? a.summary ?? a.title,
-      }));
+      const programs: Program[] = apiResult.announcements
+        .filter(a => a.source && a.programId && a.title)
+        .map((a) => ({
+          id: `${a.source}:${a.programId}`,
+          source: a.source,
+          programId: a.programId,
+          title: a.title,
+          agency: a.agency ?? null,
+          region: a.region ?? null,
+          industry: a.industry ?? null,
+          field: a.field ?? null,
+          deadline: a.deadline ?? null,
+          url: a.url ?? null,
+          summary: a.summary ?? null,
+          rawText: a.rawText ?? a.summary ?? a.title,
+        }));
       bulkUpsertPrograms(programs);
       result = searchPrograms(filters);
     } catch (err) {

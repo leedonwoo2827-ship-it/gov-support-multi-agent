@@ -99,20 +99,25 @@ router.post("/seed-real", async (c) => {
       }, 502);
     }
 
-    const programs: Program[] = result.announcements.map((a) => ({
-      id: `${a.source}:${a.programId}`,
-      source: a.source,
-      programId: a.programId,
-      title: a.title,
-      agency: a.agency ?? null,
-      region: a.region ?? null,
-      industry: a.industry ?? null,
-      field: a.field ?? null,
-      deadline: a.deadline ?? null,
-      url: a.url ?? null,
-      summary: a.summary ?? null,
-      rawText: a.rawText ?? a.summary ?? a.title,
-    }));
+    // 필수 필드 누락 행 사전 필터링 (정부 API 일부 응답에 programId 없음)
+    const programs: Program[] = result.announcements
+      .filter(a => a.source && a.programId && a.title)
+      .map((a) => ({
+        id: `${a.source}:${a.programId}`,
+        source: a.source,
+        programId: a.programId,
+        title: a.title,
+        agency: a.agency ?? null,
+        region: a.region ?? null,
+        industry: a.industry ?? null,
+        field: a.field ?? null,
+        deadline: a.deadline ?? null,
+        url: a.url ?? null,
+        summary: a.summary ?? null,
+        rawText: a.rawText ?? a.summary ?? a.title,
+      }));
+
+    const skippedFromApi = result.announcements.length - programs.length;
 
     const db = getDb();
     if (wipe) {
@@ -125,28 +130,33 @@ router.post("/seed-real", async (c) => {
         DELETE FROM programs;
       `);
     }
-    bulkUpsertPrograms(programs);
+    const { inserted, skipped: skippedDb } = bulkUpsertPrograms(programs);
     const totalAfter = countPrograms();
+    const allWarnings = [...(result.warnings ?? [])];
+    const totalSkipped = skippedFromApi + skippedDb;
+    if (totalSkipped > 0) {
+      allWarnings.push(`필수 필드 누락 ${totalSkipped}건 건너뜀`);
+    }
 
     logImport({
       kind: "real",
       sources: usedSources,
       maxPerSource,
       wipe,
-      countInserted: programs.length,
+      countInserted: inserted,
       countTotalAfter: totalAfter,
-      warnings: result.warnings,
+      warnings: allWarnings,
     });
 
     return c.json({
       ok: true,
-      count: programs.length,
+      count: inserted,
       countTotalAfter: totalAfter,
       sources: usedSources,
       maxPerSource,
       wipe,
       sourceStats: result.sourceStats,
-      warnings: result.warnings,
+      warnings: allWarnings,
     });
   } catch (err) {
     return c.json({
@@ -187,18 +197,18 @@ router.post("/seed-fixture", async (c) => {
     DELETE FROM cases;
     DELETE FROM programs;
   `);
-  bulkUpsertPrograms(programs);
+  const { inserted } = bulkUpsertPrograms(programs);
   const totalAfter = countPrograms();
 
   logImport({
     kind: "fixture",
     sources: ["fixture"],
     wipe: true,
-    countInserted: programs.length,
+    countInserted: inserted,
     countTotalAfter: totalAfter,
   });
 
-  return c.json({ ok: true, count: programs.length, countTotalAfter: totalAfter });
+  return c.json({ ok: true, count: inserted, countTotalAfter: totalAfter });
 });
 
 router.get("/history", (c) => {

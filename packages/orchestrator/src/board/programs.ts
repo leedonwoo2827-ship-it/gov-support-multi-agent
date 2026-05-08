@@ -32,19 +32,32 @@ export function upsertProgram(p: Program): void {
          p.field, p.deadline, p.url, p.summary, p.rawText);
 }
 
-export function bulkUpsertPrograms(programs: Program[]): void {
+export function bulkUpsertPrograms(programs: Program[]): { inserted: number; skipped: number } {
   const db = getDb();
   const insert = db.prepare(`
     INSERT INTO programs (id, source, program_id, title, agency, region, industry, field, deadline, url, summary, raw_text)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET cached_at = datetime('now')
   `);
+  let inserted = 0;
+  let skipped = 0;
   transaction(db, () => {
     for (const p of programs) {
-      insert.run(p.id, p.source, p.programId, p.title, p.agency, p.region, p.industry,
-                 p.field, p.deadline, p.url, p.summary, p.rawText);
+      // 필수 필드 누락 시 skip
+      if (!p.id || !p.source || !p.programId || !p.title) {
+        skipped++;
+        continue;
+      }
+      insert.run(
+        p.id, p.source, p.programId, p.title,
+        p.agency ?? null, p.region ?? null, p.industry ?? null, p.field ?? null,
+        p.deadline ?? null, p.url ?? null, p.summary ?? null,
+        p.rawText ?? p.summary ?? p.title,
+      );
+      inserted++;
     }
   });
+  return { inserted, skipped };
 }
 
 export function getProgram(id: string): Program | null {
