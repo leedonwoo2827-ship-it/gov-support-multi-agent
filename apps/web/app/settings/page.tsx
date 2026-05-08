@@ -24,8 +24,9 @@ export default function SettingsPage() {
   const [show, setShow] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [diagnostics, setDiagnostics] = useState<any | null>(null);
   const [maxPerSource, setMaxPerSource] = useState(100);
-  const [wipe, setWipe] = useState(true);
+  const [wipe, setWipe] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
 
   async function loadHistory() {
@@ -73,17 +74,26 @@ export default function SettingsPage() {
   async function seedReal() {
     setBusy(true);
     setMessage(null);
+    setDiagnostics(null);
     try {
       const res = await fetch("/api/admin/seed-real", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ maxPerSource, wipe }),
       }).then(r => r.json());
+      setDiagnostics(res);
       if (res.ok) {
-        setMessage({
-          kind: "ok",
-          text: `✅ 실데이터 ${res.count}건 적재 (소스: ${res.sources.join(", ")}, 현재 DB 총 ${res.countTotalAfter}건${res.wipe ? ", 기존 삭제" : ", 누적"})`,
-        });
+        if (res.count === 0) {
+          setMessage({
+            kind: "err",
+            text: `⚠ API 호출은 성공했으나 0건 반환. 아래 진단 정보를 확인하세요.`,
+          });
+        } else {
+          setMessage({
+            kind: "ok",
+            text: `✅ 실데이터 ${res.count}건 적재 (소스: ${res.sources.join(", ")}, 현재 DB 총 ${res.countTotalAfter}건${res.wipe ? ", 기존 삭제" : ", 누적"})`,
+          });
+        }
         await loadHistory();
       } else {
         setMessage({ kind: "err", text: `❌ ${res.error}` });
@@ -157,6 +167,58 @@ export default function SettingsPage() {
         {message && (
           <div className={`gov-card p-3 text-sm ${message.kind === "ok" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
             {message.text}
+          </div>
+        )}
+
+        {diagnostics && (diagnostics.count === 0 || diagnostics.warnings?.length > 0) && (
+          <div className="gov-card p-4 bg-blue-50 border-blue-200">
+            <h3 className="font-semibold text-blue-900 mb-2">🔍 진단 정보</h3>
+
+            {diagnostics.sourceStats && (
+              <div className="mb-3">
+                <p className="text-sm font-medium text-blue-900 mb-1">소스별 호출 결과</p>
+                <table className="w-full text-xs">
+                  <thead className="bg-blue-100 border-b border-blue-200">
+                    <tr>
+                      <th className="text-left p-2">소스</th>
+                      <th className="text-right p-2">받은 건수</th>
+                      <th className="text-left p-2">에러 / 비고</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(diagnostics.sourceStats).map(([src, stat]: [string, any]) => (
+                      <tr key={src} className="border-b border-blue-100">
+                        <td className="p-2 font-medium">{src}</td>
+                        <td className="p-2 text-right">{stat.fetched ?? 0}</td>
+                        <td className="p-2 text-red-700">{stat.error ?? "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {diagnostics.warnings?.length > 0 && (
+              <div className="mb-3">
+                <p className="text-sm font-medium text-blue-900 mb-1">경고</p>
+                <ul className="text-xs text-blue-900 list-disc pl-5 space-y-1">
+                  {diagnostics.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {diagnostics.count === 0 && (
+              <div className="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200 text-xs text-yellow-900">
+                <p className="font-medium mb-1">⚠ 0건 반환 시 주로 다음 원인:</p>
+                <ol className="list-decimal pl-5 space-y-1">
+                  <li><strong>키 활성화 지연</strong>: data.go.kr 승인 후 최대 1시간 후에 활성화. 잠시 기다렸다가 다시 시도.</li>
+                  <li><strong>Encoding/Decoding 키 혼동</strong>: data.go.kr 마이페이지에서 "일반 인증키 (<strong>Encoding</strong>)" 을 복사했는지 확인. Decoding 은 작동 안 함.</li>
+                  <li><strong>인증키 누락 또는 오타</strong>: 64자 hex 문자열인지 다시 확인. 앞뒤 공백 제거.</li>
+                  <li><strong>일일 트래픽 초과</strong>: data.go.kr 마이페이지 &gt; 트래픽 현황에서 잔량 확인.</li>
+                  <li><strong>모집중 공고 없음</strong>: 모든 공고가 모집 마감 상태일 수 있음. 드물지만 가능.</li>
+                </ol>
+              </div>
+            )}
           </div>
         )}
 
