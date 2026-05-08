@@ -1,69 +1,64 @@
 @echo off
-chcp 65001 > nul
 setlocal
 
 echo ========================================
-echo gov-support-multi-agent 설치
+echo   gov-support-multi-agent : install
 echo ========================================
 echo.
 
-REM Node 24+ 확인
-node --version > nul 2>&1
+REM ----- check Node -----
+where node >nul 2>&1
 if errorlevel 1 (
-  echo [ERROR] Node.js가 설치되지 않았습니다. https://nodejs.org/ 에서 Node 24 이상 설치 필요.
+  echo [ERROR] Node.js not found. Install Node 24+ from https://nodejs.org/
   pause
   exit /b 1
 )
 
-REM pnpm 확인
-pnpm --version > nul 2>&1
+REM ----- check pnpm -----
+where pnpm >nul 2>&1
 if errorlevel 1 (
-  echo [INFO] pnpm 설치 중...
-  npm install -g pnpm
+  echo [INFO] pnpm not found. Installing globally...
+  call npm install -g pnpm
   if errorlevel 1 (
-    echo [ERROR] pnpm 설치 실패. 관리자 권한으로 실행해주세요.
+    echo [ERROR] pnpm install failed. Run as admin or install manually.
     pause
     exit /b 1
   )
 )
 
-echo [1/3] 의존성 설치 (pnpm install)
+echo [1/3] pnpm install
 call pnpm install
 if errorlevel 1 (
-  echo [ERROR] pnpm install 실패
+  echo [ERROR] pnpm install failed.
   pause
   exit /b 1
 )
 
 echo.
-echo [2/3] .env 파일 확인
+echo [2/3] .env check
 if not exist ".env" (
-  copy .env.example .env > nul
-  echo [INFO] .env 파일을 .env.example 에서 복사했습니다. 필요 시 ANTHROPIC_API_KEY 입력하세요.
+  copy /Y .env.example .env >nul
+  echo   .env created from .env.example
 ) else (
-  echo [INFO] .env 파일 이미 존재
+  echo   .env already exists
 )
 
 echo.
-echo [3/3] DB 시드 (공고 20건 + 데모 회사 프로파일)
+echo [3/3] DB seed (20 sample programs + demo profile)
 call pnpm --filter @gov/orchestrator run seed
 if errorlevel 1 (
-  echo [ERROR] 시드 실패
+  echo [ERROR] seed failed.
   pause
   exit /b 1
 )
 
 echo.
 echo ========================================
-echo ✅ 설치 완료!
+echo   Install OK!
 echo ========================================
 echo.
-echo 다음 단계:
-echo   1. dev.bat 실행 (orchestrator + web 동시 실행)
-echo   2. 브라우저에서 http://localhost:3000 열기
-echo.
-echo (선택) ANTHROPIC_API_KEY 설정:
-echo   notepad .env
+echo Next: run dev.bat
+echo Then open http://localhost:3000
 echo.
 pause
 endlocal
