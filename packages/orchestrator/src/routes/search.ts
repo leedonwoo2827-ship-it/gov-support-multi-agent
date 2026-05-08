@@ -33,21 +33,29 @@ router.post("/", zValidator("json", SearchFiltersSchema), async (c) => {
         apiKeys,
       );
       const programs: Program[] = apiResult.announcements
-        .filter(a => a.source && a.programId && a.title)
-        .map((a) => ({
-          id: `${a.source}:${a.programId}`,
-          source: a.source,
-          programId: a.programId,
-          title: a.title,
-          agency: a.agency ?? null,
-          region: a.region ?? null,
-          industry: a.industry ?? null,
-          field: a.field ?? null,
-          deadline: a.deadline ?? null,
-          url: a.url ?? null,
-          summary: a.summary ?? null,
-          rawText: a.rawText ?? a.summary ?? a.title,
-        }));
+        .filter(a => a.source && a.announcementId && a.title)
+        .map((a) => {
+          const prefix = `${a.source}:`;
+          const programId = a.announcementId.startsWith(prefix)
+            ? a.announcementId.slice(prefix.length)
+            : a.announcementId;
+          const raw = a.rawItem as Record<string, any>;
+          return {
+            id: a.announcementId,
+            source: a.source,
+            programId,
+            title: a.title,
+            agency: a.agency ?? null,
+            region: a.region ?? null,
+            industry: null,
+            field: a.field ?? null,
+            deadline: a.deadline ?? null,
+            url: a.detailUrl ?? null,
+            summary: raw?.pblancNm || raw?.biz_pbanc_nm || null,
+            rawText: [raw?.pblancCn, raw?.pbanc_ctnt, a.title, a.agency, a.field, a.region]
+              .filter(Boolean).join("\n\n").slice(0, 5000) || a.title,
+          };
+        });
       bulkUpsertPrograms(programs);
       result = searchPrograms(filters);
     } catch (err) {

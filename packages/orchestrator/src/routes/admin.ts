@@ -99,23 +99,42 @@ router.post("/seed-real", async (c) => {
       }, 502);
     }
 
-    // 필수 필드 누락 행 사전 필터링 (정부 API 일부 응답에 programId 없음)
+    // NormalizedAnnouncement 의 필드: announcementId, title, source, agency, deadline, field, region, detailUrl, rawItem
     const programs: Program[] = result.announcements
-      .filter(a => a.source && a.programId && a.title)
-      .map((a) => ({
-        id: `${a.source}:${a.programId}`,
-        source: a.source,
-        programId: a.programId,
-        title: a.title,
-        agency: a.agency ?? null,
-        region: a.region ?? null,
-        industry: a.industry ?? null,
-        field: a.field ?? null,
-        deadline: a.deadline ?? null,
-        url: a.url ?? null,
-        summary: a.summary ?? null,
-        rawText: a.rawText ?? a.summary ?? a.title,
-      }));
+      .filter(a => a.source && a.announcementId && a.title)
+      .map((a) => {
+        const prefix = `${a.source}:`;
+        const programId = a.announcementId.startsWith(prefix)
+          ? a.announcementId.slice(prefix.length)
+          : a.announcementId;
+        const raw = a.rawItem as Record<string, any>;
+        // 본문 추출 (소스별 필드명 다름)
+        const summary = raw?.pblancNm || raw?.biz_pbanc_nm || null;
+        const rawText = [
+          raw?.pblancCn,                                    // bizinfo 공고 내용
+          raw?.pbanc_ctnt,                                  // kstartup 공고 내용
+          raw?.bsns_sumry, raw?.aply_trgt_ctnt, raw?.bsns_inq_ctnt,
+          a.title,
+          a.agency,
+          a.field,
+          a.region,
+        ].filter(Boolean).join("\n\n").slice(0, 5000) || a.title;
+
+        return {
+          id: a.announcementId,
+          source: a.source,
+          programId,
+          title: a.title,
+          agency: a.agency ?? null,
+          region: a.region ?? null,
+          industry: null,
+          field: a.field ?? null,
+          deadline: a.deadline ?? null,
+          url: a.detailUrl ?? null,
+          summary,
+          rawText,
+        };
+      });
 
     const skippedFromApi = result.announcements.length - programs.length;
 
