@@ -33,17 +33,47 @@
 
 ### Google Gemini
 
-> 가격은 Google AI Studio 무료 티어 / Vertex AI 유료 티어 기준이 다를 수 있고, "thinking" 활성화 시 출력 단가가 별도. 정확한 최신가는 [Google AI 가격 페이지](https://ai.google.dev/pricing) 확인.
+> 출처: [ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing?hl=ko) (Standard 티어 기준).
+> 무료 티어는 분당/일당 호출 수 제한이 있고 Batch / Flex / Priority 티어는 가격이 다릅니다.
 
-| 모델 | 입력 ($/M) | 출력 ($/M) | 케이스 1건 KRW | 비고 |
-|---|---|---|---|---|
-| **Gemini 2.5 Pro** | $1.25 (≤200K) / $2.50 (>200K) | $10 / $15 | 약 250~400원 | 추론·코딩 최강 |
-| **Gemini 2.5 Flash** | $0.30 | $2.50 (thinking on) / $0.30 (off) | 약 60~250원 | 메인스트림 추천 |
-| **Gemini 2.5 Flash-Lite** | $0.10 | $0.40 | **약 15~25원** | 가장 저렴, 단순 추출용 |
-| Gemini 2.0 Flash (구버전) | $0.075 | $0.30 | 약 11원 | 신규 프로젝트 비추 |
-| Gemini 1.5 Pro (구버전) | $1.25 | $5 | 약 180원 | EOL 임박 |
+#### 정식 출시 (Gemini 2.5)
 
-`Gemini 2.5 Pro`/`Flash`는 thinking budget 을 0 으로 설정하면 출력비가 1/8 수준으로 떨어집니다. 단순 JSON 추출 위주의 체크리스트/일정 에이전트는 thinking off 권장.
+| 모델 ID | 입력 ($/M) | 출력 ($/M) | 캐시 입력 ($/M) | 케이스 1건 KRW | 무료 티어 |
+|---|---|---|---|---|---|
+| `gemini-2.5-pro` | $1.25 (≤200K)<br>$2.50 (>200K) | $10.00 (≤200K)<br>$15.00 (>200K) | $0.125 / $0.25 | **약 290~520원** | ✅ |
+| `gemini-2.5-flash` | $0.30 (텍스트)<br>$1.00 (오디오) | $2.50 | $0.03 | **약 75원** | ✅ |
+| `gemini-2.5-flash-lite` | $0.10 (텍스트)<br>$0.30 (오디오) | $0.40 | $0.01 | **약 14원** | ✅ |
+
+#### Preview (Gemini 3.x — 2025-11 이후 출시, API 안정성 보장 X)
+
+| 모델 ID | 입력 ($/M) | 출력 ($/M) | 캐시 입력 ($/M) | 케이스 1건 KRW | 무료 티어 |
+|---|---|---|---|---|---|
+| `gemini-3.1-pro-preview` | $2.00 (≤200K)<br>$4.00 (>200K) | $12.00 (≤200K)<br>$18.00 (>200K) | $0.20 | **약 380~720원** | ❌ |
+| `gemini-3-flash-preview` | $0.50 (텍스트)<br>$1.00 (오디오) | $3.00 | $0.05 | **약 95원** | ✅ |
+| `gemini-3.1-flash-lite` | $0.25 (텍스트)<br>$0.50 (오디오) | $1.50 | $0.025 | **약 47원** | ✅ |
+
+> 우리 PoC 는 텍스트 입력만 사용 → 오디오 단가 무관. Standard 티어 기본.
+
+#### 모델별 특징 (Google AI Studio 공식 분류)
+
+| 모델 | 용도 | thinking |
+|---|---|---|
+| **Gemini 2.5 Pro** | 심층 추론·코딩. PoC 자격평가 / 사업계획서 추천 | 지원 |
+| **Gemini 2.5 Flash** | 추론 + 짧은 지연시간. 메인스트림 추천 | 지원 (on/off 선택) |
+| **Gemini 2.5 Flash-Lite** | 가장 빠르고 저렴. 단순 추출 (체크리스트·일정) | 미지원 |
+| **Gemini 3.1 Pro (Preview)** | 차세대 고급 추론 — 정식 전 변동성 주의 | 지원 |
+| **Gemini 3 Flash (Preview)** | 대규모 모델 수준 성능 + 저가격 | 지원 |
+| **Gemini 3.1 Flash-Lite (Preview)** | 빠르고 경제적 — Flash-Lite 차세대 | 미지원 |
+
+#### thinking 옵션과 비용
+
+`gemini-2.5-flash` / `gemini-2.5-pro` 는 `thinking_budget` 으로 추론 단계 출력을 제어 가능:
+- `thinking_budget = 0`: 추론 비활성화 → 출력 토큰 ↓ → 사실상 1/3~1/8 비용
+- `thinking_budget` 양수 또는 자동: 추론 활성 → 정확도 ↑ but 출력 토큰 증가
+
+PoC 권장:
+- 자격평가 / 사업계획서 → **thinking on** (추론 정확도)
+- 체크리스트 / 일정표 → **thinking off** (단순 추출, 비용 절감)
 
 ### OpenAI
 
