@@ -30,9 +30,19 @@ export default function PostCard({ post, status, agentLabel, programTitle, error
 
   return (
     <div className="gov-card p-3">
-      <header className="flex items-center justify-between mb-2">
+      <header className="flex items-center justify-between mb-2 gap-2">
         <h3 className="font-semibold text-sm">{agentLabel}</h3>
-        <span className={`status-pill status-${status}`}>{statusLabel}</span>
+        <div className="flex items-center gap-1">
+          {post && (
+            <a
+              href={`/api/export/posts/${post.id}/md`}
+              download
+              className="text-xs text-gov-accent hover:underline"
+              title="이 글만 마크다운으로 다운로드"
+            >📥</a>
+          )}
+          <span className={`status-pill status-${status}`}>{statusLabel}</span>
+        </div>
       </header>
       <p className="text-xs text-gray-700 line-clamp-1 mb-2">{programTitle}</p>
       {post ? (

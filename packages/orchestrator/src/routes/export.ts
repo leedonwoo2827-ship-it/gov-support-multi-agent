@@ -1,10 +1,10 @@
-// 다운로드 라우트 — gov.db / programs.csv / posts.csv / case.{json,md}
+// 다운로드 라우트 — gov.db / programs.csv / posts.csv / case.{json,md} / 개별 post.md
 
 import { Hono } from "hono";
 import Papa from "papaparse";
 import { readFileSync } from "node:fs";
 import { listAllPrograms } from "../board/programs.js";
-import { listPosts, listPostsByCase } from "../board/posts.js";
+import { listPosts, listPostsByCase, getPost } from "../board/posts.js";
 import { getCase } from "../board/cases.js";
 import { getProgram } from "../board/programs.js";
 import { getProfile } from "../board/profiles.js";
@@ -67,6 +67,37 @@ router.get("/cases/:id/json", (c) => {
     program: getProgram(kase.programId),
     profile: getProfile(kase.companyProfileId),
     posts: listPostsByCase(id),
+  });
+});
+
+// 개별 게시글 — 한 에이전트 결과만 단독 마크다운
+router.get("/posts/:id/md", (c) => {
+  const id = c.req.param("id");
+  const post = getPost(id);
+  if (!post) return c.json({ error: "게시글 없음" }, 404);
+  const md = [
+    `# ${post.title}`,
+    ``,
+    `> 에이전트: ${post.agentId} · 케이스: ${post.caseId} · 생성: ${post.createdAt}`,
+    ``,
+    `---`,
+    ``,
+    post.bodyMd,
+    ``,
+    `---`,
+    ``,
+    `## 구조화 페이로드 (JSON)`,
+    ``,
+    "```json",
+    JSON.stringify(post.payload, null, 2),
+    "```",
+    ``,
+  ].join("\n");
+  return new Response(md, {
+    headers: {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${post.agentId}-${post.id}.md"`,
+    },
   });
 });
 
