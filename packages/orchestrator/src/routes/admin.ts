@@ -42,6 +42,26 @@ function logImport(input: {
   );
 }
 
+/**
+ * 정부 API 의 다양한 날짜 포맷을 ISO YYYY-MM-DD 로 정규화.
+ * - "20260512" → "2026-05-12"
+ * - "2026-05-12" → "2026-05-12"
+ * - "2026/05/12" → "2026-05-12"
+ * - 빈 값 / 파싱 불가 → null
+ */
+function normalizeDate(d: string | null | undefined): string | null {
+  if (!d) return null;
+  const s = String(d).trim();
+  if (!s) return null;
+  if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  if (/^\d{4}[-/.]\d{2}[-/.]\d{2}/.test(s)) {
+    return s.slice(0, 10).replace(/[/.]/g, "-");
+  }
+  const t = Date.parse(s);
+  if (!Number.isNaN(t)) return new Date(t).toISOString().slice(0, 10);
+  return null;
+}
+
 function listHistory(limit = 20): ImportHistoryRow[] {
   const rows = getDb().prepare(`
     SELECT * FROM import_history ORDER BY id DESC LIMIT ?
@@ -129,7 +149,7 @@ router.post("/seed-real", async (c) => {
           region: a.region ?? null,
           industry: null,
           field: a.field ?? null,
-          deadline: a.deadline ?? null,
+          deadline: normalizeDate(a.deadline),
           url: a.detailUrl ?? null,
           summary,
           rawText,

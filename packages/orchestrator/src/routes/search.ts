@@ -8,6 +8,17 @@ import { searchGovernmentSupport } from "@gov/mcp-tools";
 import { getApiKeys } from "../board/settings.js";
 import type { Program } from "@gov/shared";
 
+function normalizeDate(d: string | null | undefined): string | null {
+  if (!d) return null;
+  const s = String(d).trim();
+  if (!s) return null;
+  if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  if (/^\d{4}[-/.]\d{2}[-/.]\d{2}/.test(s)) return s.slice(0, 10).replace(/[/.]/g, "-");
+  const t = Date.parse(s);
+  if (!Number.isNaN(t)) return new Date(t).toISOString().slice(0, 10);
+  return null;
+}
+
 const router = new Hono();
 
 router.post("/", zValidator("json", SearchFiltersSchema), async (c) => {
@@ -49,7 +60,7 @@ router.post("/", zValidator("json", SearchFiltersSchema), async (c) => {
             region: a.region ?? null,
             industry: null,
             field: a.field ?? null,
-            deadline: a.deadline ?? null,
+            deadline: normalizeDate(a.deadline),
             url: a.detailUrl ?? null,
             summary: raw?.pblancNm || raw?.biz_pbanc_nm || null,
             rawText: [raw?.pblancCn, raw?.pbanc_ctnt, a.title, a.agency, a.field, a.region]

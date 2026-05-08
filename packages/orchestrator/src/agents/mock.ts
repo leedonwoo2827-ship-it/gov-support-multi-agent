@@ -112,8 +112,12 @@ function mockChecklist(p: CompanyProfile, prog: Program) {
 }
 
 function mockMilestone(_p: CompanyProfile, prog: Program) {
-  const deadline = prog.deadline ?? new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
-  const dl = new Date(deadline);
+  // deadline 이 잘못된 형식이거나 null 이면 30일 후 기본값
+  let dl = prog.deadline ? new Date(prog.deadline) : new Date(Date.now() + 30 * 86400_000);
+  if (Number.isNaN(dl.getTime())) {
+    dl = new Date(Date.now() + 30 * 86400_000);
+  }
+  const deadline = dl.toISOString().slice(0, 10);
   const mk = (days: number, title: string, owner: "신청자" | "대표" | "외부", deliverables: string[]) => ({
     date: new Date(dl.getTime() - days * 86400_000).toISOString().slice(0, 10),
     daysBeforeDeadline: days,
