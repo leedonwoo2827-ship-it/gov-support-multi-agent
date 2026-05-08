@@ -63,13 +63,37 @@ export default function ProgramTable({ programs, total, selected, onToggle, onTo
 
 function formatDeadline(d: string | null): string {
   if (!d) return "상시";
-  // YYYYMMDD → YYYY-MM-DD 정규화 (DB 에 옛날 포맷 남아있을 수 있음)
-  let iso = d;
-  if (/^\d{8}$/.test(d)) {
-    iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+  const s = String(d).trim();
+  if (!s) return "상시";
+
+  // 다양한 한국 정부 API 포맷 정규화
+  let iso: string | null = null;
+  if (/^\d{8}$/.test(s)) {
+    // 20260520 → 2026-05-20
+    iso = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  } else if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(s)) {
+    // 2026-5-20 / 2026/5/20 / 2026.5.20
+    const m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (m) iso = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  } else if (/\d{4}년\s*\d{1,2}월\s*\d{1,2}일/.test(s)) {
+    // 2026년 5월 20일
+    const m = s.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+    if (m) iso = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  } else {
+    // ISO 호환일 가능성 (e.g., "2026-05-20T...")
+    iso = s;
   }
+
+  if (!iso) {
+    console.warn("[formatDeadline] 파싱 불가:", s);
+    return s;
+  }
+
   const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return d;             // 파싱 실패 시 원문
+  if (Number.isNaN(t)) {
+    console.warn("[formatDeadline] new Date 실패:", { raw: s, iso });
+    return s;                                  // 원문 그대로 (D-NaN 안 나오게)
+  }
   const days = Math.ceil((t - Date.now()) / 86_400_000);
   if (days < 0) return "마감";
   if (days === 0) return "D-DAY";
