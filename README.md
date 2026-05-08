@@ -24,8 +24,11 @@ install.bat
 REM 2) 두 서버 실행 (별도 창에서) + 브라우저 자동 오픈
 dev.bat
 
-REM (필요 시) DB 재시드
+REM (필요 시) DB 재시드 — 합성 fixture 20건
 seed.bat
+
+REM (필요 시) 실데이터 시드 — K-Startup 100건 (PUBLIC_DATA_SERVICE_KEY 필요)
+seed-real.bat
 
 REM (필요 시) 서버 종료
 stop.bat
@@ -43,7 +46,10 @@ clean.bat
 # 2) 두 서버 실행 + 브라우저 자동 오픈
 ./dev.sh
 
-# (필요 시) DB 재시드 / 종료 / 클린
+# (선택) 실데이터로 교체 — K-Startup 100건 (PUBLIC_DATA_SERVICE_KEY 필요)
+./seed-real.sh
+
+# (필요 시) DB 재시드(fixture) / 종료 / 클린
 ./seed.sh
 ./stop.sh
 ./clean.sh
@@ -59,12 +65,27 @@ open http://localhost:3000   # macOS
 xdg-open http://localhost:3000   # Linux
 ```
 
-API 키 없이도 mock 모드로 시연됩니다. 실제 LLM 호출이 필요하면:
+API 키 없이도 mock 모드로 시연됩니다. 실제 LLM/공고 데이터를 쓰려면:
 
 ```bash
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
-pnpm dev
+# .env 편집
+notepad .env   # Windows
+nano .env      # Mac/Linux
+
+# 다음 키 중 필요한 것만 입력
+ANTHROPIC_API_KEY=sk-ant-...        # 에이전트 실 호출
+PUBLIC_DATA_SERVICE_KEY=...         # data.go.kr K-Startup 등 실데이터 (인증키 Encoding)
+BIZINFO_API_KEY=...                 # bizinfo.go.kr (별도 발급)
+SMES24_API_KEY=...                  # smes.go.kr (별도 발급)
 ```
+
+### 실데이터 적용 (3단계)
+
+1. https://www.data.go.kr/iim/api/selectAcountList.do 에서 활용신청한 API 클릭 → **인증키(Encoding)** 복사
+2. `.env` 에 `PUBLIC_DATA_SERVICE_KEY=복사한키` 한 줄 추가
+3. `seed-real.bat` (Windows) 또는 `./seed-real.sh` (Mac/Linux) 실행
+
+→ 합성 fixture 20건이 K-Startup 실 공고 100건으로 교체됨. 공고명 클릭 시 진짜 K-Startup 페이지로 이동.
 
 ## 시연 시나리오
 
