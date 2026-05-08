@@ -88,11 +88,11 @@ export type PlanDraftPost = z.infer<typeof PlanDraftPostSchema>;
 
 // ── 에이전트 3: 서류 체크리스트 ─────────────────────────────────────
 export const DocItemSchema = z.object({
-  code: z.string(),
-  nameKo: z.string(),
-  issuer: z.string(),
+  code: z.string().default(""),
+  nameKo: z.string().default(""),
+  issuer: z.string().default("미상"),
   validityDays: z.number().optional(),
-  status: z.enum(["ready", "todo", "unknown"]),
+  status: z.enum(["ready", "todo", "unknown"]).default("unknown"),
   note: z.string().optional(),
 });
 export type DocItem = z.infer<typeof DocItemSchema>;
@@ -109,10 +109,10 @@ export type ChecklistPost = z.infer<typeof ChecklistPostSchema>;
 
 // ── 에이전트 4: 마일스톤 일정표 ─────────────────────────────────────
 export const MilestoneSchema = z.object({
-  date: z.string(),                            // YYYY-MM-DD 또는 자유 형식 (검증 시 강제 안 함)
-  daysBeforeDeadline: z.number().int(),        // 정수
-  titleKo: z.string().min(1),
-  owner: z.string().min(1),                    // 신청자/대표/외부 권장하지만 자유 입력 허용
+  date: z.string().default(""),                // YYYY-MM-DD 또는 자유 형식
+  daysBeforeDeadline: z.number().int().default(0),
+  titleKo: z.string().default(""),
+  owner: z.string().default("신청자"),
   deliverables: z.array(z.string()).default([]),
   dependsOnDocs: z.array(z.string()).default([]),
 });
