@@ -45,10 +45,17 @@ export default function BoardGrid({ caseRows }: Props) {
             </div>
             <div className="flex gap-1 text-xs">
               <a
+                href={`/api/export/cases/${kase.id}/html`}
+                target="_blank"
+                rel="noopener"
+                className="gov-btn-sub py-1 px-2"
+                title="새 탭에서 열고 Ctrl+P 로 PDF 저장"
+              >📄 PDF</a>
+              <a
                 href={`/api/export/cases/${kase.id}/md`}
                 download
                 className="gov-btn-sub py-1 px-2"
-                title="이 케이스의 4개 에이전트 결과를 통합 마크다운 보고서로 다운로드"
+                title="통합 마크다운 다운로드"
               >📥 보고서 (MD)</a>
               <a
                 href={`/api/export/cases/${kase.id}/json`}

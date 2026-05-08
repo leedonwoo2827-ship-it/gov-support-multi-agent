@@ -1,13 +1,67 @@
-// 다운로드 라우트 — gov.db / programs.csv / posts.csv / case.{json,md} / 개별 post.md
+// 다운로드 라우트 — gov.db / programs.csv / posts.csv / case.{json,md,html} / 개별 post.{md,html}
 
 import { Hono } from "hono";
 import Papa from "papaparse";
+import { marked } from "marked";
 import { readFileSync } from "node:fs";
 import { listAllPrograms } from "../board/programs.js";
 import { listPosts, listPostsByCase, getPost } from "../board/posts.js";
 import { getCase } from "../board/cases.js";
 import { getProgram } from "../board/programs.js";
 import { getProfile } from "../board/profiles.js";
+
+// HTML 렌더 — 인쇄/PDF 친화 스타일
+function renderHtml(title: string, bodyMd: string): string {
+  const bodyHtml = marked.parse(bodyMd) as string;
+  return `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>${escapeHtml(title)}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Pretendard', system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 24px; line-height: 1.7; color: #1a1a1a; background: white; }
+  h1 { font-size: 26px; border-bottom: 2px solid #003478; padding-bottom: 10px; margin-top: 32px; }
+  h2 { font-size: 20px; margin-top: 28px; padding-top: 8px; border-top: 1px solid #eee; }
+  h3 { font-size: 16px; margin-top: 20px; color: #003478; }
+  h4 { font-size: 14px; margin-top: 16px; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 14px; }
+  th, td { border: 1px solid #d0d7de; padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: #f3f6fa; font-weight: 600; }
+  blockquote { border-left: 4px solid #0073e6; padding: 8px 14px; margin: 14px 0; background: #f0f7ff; color: #1a3a5c; }
+  code { background: #f3f4f6; padding: 1px 6px; border-radius: 3px; font-size: 13px; }
+  pre { background: #f6f8fa; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+  ul, ol { padding-left: 24px; }
+  li { margin: 4px 0; }
+  hr { border: 0; border-top: 1px dashed #ccc; margin: 32px 0; }
+  .meta { color: #6a737d; font-size: 13px; margin-bottom: 8px; }
+  .actions { margin: 20px 0; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; }
+  .actions button { background: #003478; color: white; border: 0; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 8px; font-family: inherit; }
+  .actions button:hover { background: #0073e6; }
+  @media print {
+    .actions { display: none; }
+    body { margin: 0; padding: 16mm; max-width: none; }
+    h1, h2, h3 { page-break-after: avoid; }
+    table, blockquote, pre { page-break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<div class="actions">
+  💡 PDF 로 저장하려면 <kbd>Ctrl</kbd>+<kbd>P</kbd> (Mac: <kbd>⌘</kbd>+<kbd>P</kbd>) → 인쇄 대화상자에서 "PDF 로 저장" 선택.
+  &nbsp;<button onclick="window.print()">🖨 인쇄 / PDF 저장</button>
+</div>
+${bodyHtml}
+</body>
+</html>`;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[<>&"']/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
 
 const router = new Hono();
 
@@ -101,15 +155,14 @@ router.get("/posts/:id/md", (c) => {
   });
 });
 
-router.get("/cases/:id/md", (c) => {
-  const id = c.req.param("id");
+function buildCaseMarkdown(id: string): string | null {
   const kase = getCase(id);
-  if (!kase) return c.json({ error: "케이스 없음" }, 404);
+  if (!kase) return null;
   const program = getProgram(kase.programId);
   const profile = getProfile(kase.companyProfileId);
   const posts = listPostsByCase(id);
 
-  const md = [
+  return [
     `# ${program?.title ?? "(공고 없음)"} — 멀티에이전트 분석 보고서`,
     ``,
     `- 회사: ${profile?.companyName ?? "(미정)"}`,
@@ -129,13 +182,45 @@ router.get("/cases/:id/md", (c) => {
       ``,
     ].join("\n")),
   ].join("\n");
+}
 
+router.get("/cases/:id/md", (c) => {
+  const id = c.req.param("id");
+  const md = buildCaseMarkdown(id);
+  if (!md) return c.json({ error: "케이스 없음" }, 404);
   return new Response(md, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
       "Content-Disposition": `attachment; filename="case-${id}.md"`,
     },
   });
+});
+
+// 케이스 통합 — 인쇄 친화 HTML (Ctrl+P → PDF)
+router.get("/cases/:id/html", (c) => {
+  const id = c.req.param("id");
+  const md = buildCaseMarkdown(id);
+  if (!md) return c.json({ error: "케이스 없음" }, 404);
+  const kase = getCase(id);
+  const title = `case-${id} 멀티에이전트 분석 보고서`;
+  const html = renderHtml(title, md);
+  return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+});
+
+// 개별 게시글 — 인쇄 친화 HTML
+router.get("/posts/:id/html", (c) => {
+  const id = c.req.param("id");
+  const post = getPost(id);
+  if (!post) return c.json({ error: "게시글 없음" }, 404);
+  const md = [
+    `# ${post.title}`,
+    ``,
+    `> 에이전트: ${post.agentId} · 생성: ${post.createdAt}`,
+    ``,
+    post.bodyMd,
+  ].join("\n");
+  const html = renderHtml(post.title, md);
+  return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 });
 
 function today(): string {
