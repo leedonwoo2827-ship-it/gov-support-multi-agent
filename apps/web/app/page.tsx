@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 import ProgramTable from "@/components/ProgramTable";
 import ActionBar from "@/components/ActionBar";
@@ -75,7 +76,10 @@ export default function HomePage() {
       <header className="bg-gov-blue text-white px-6 py-3 shadow">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <h1 className="text-lg font-bold">정부지원사업 멀티에이전트 분석 대시보드</h1>
-          <div className="text-xs opacity-80">회사: ㈜데모컴퍼니</div>
+          <div className="flex items-center gap-4 text-xs opacity-90">
+            <span>회사: ㈜데모컴퍼니</span>
+            <Link href="/settings" className="underline hover:opacity-100">⚙️ 설정</Link>
+          </div>
         </div>
       </header>
 

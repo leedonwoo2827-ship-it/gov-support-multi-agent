@@ -79,13 +79,20 @@ BIZINFO_API_KEY=...                 # bizinfo.go.kr (별도 발급)
 SMES24_API_KEY=...                  # smes.go.kr (별도 발급)
 ```
 
-### 실데이터 적용 (3단계)
+### 실데이터 적용 — 대시보드에서 (권장)
 
-1. https://www.data.go.kr/iim/api/selectAcountList.do 에서 활용신청한 API 클릭 → **인증키(Encoding)** 복사
-2. `.env` 에 `PUBLIC_DATA_SERVICE_KEY=복사한키` 한 줄 추가
-3. `seed-real.bat` (Windows) 또는 `./seed-real.sh` (Mac/Linux) 실행
+1. http://localhost:3000 → 우상단 **[⚙️ 설정]** 클릭
+2. 4개 키 입력 + [💾 저장]
+3. 상단 [📥 실데이터 적재] 섹션에서 받을 건수 선택 → [🔄 실데이터 가져오기]
+4. 하단 [📜 데이터 적재 이력] 에서 누가/언제/몇 건 가져왔는지 추적
 
-→ 합성 fixture 20건이 K-Startup 실 공고 100건으로 교체됨. 공고명 클릭 시 진짜 K-Startup 페이지로 이동.
+키는 SQLite 의 `settings` 테이블에 저장되며, 환경변수보다 우선합니다.
+
+부서별 운영·키 발급 가이드는 [`_docs/USER_MANUAL.md`](_docs/USER_MANUAL.md) 참고.
+
+### 실데이터 적용 — CLI (대안)
+
+`.env` 에 `PUBLIC_DATA_SERVICE_KEY=...` 추가 후 `seed-real.bat` (Windows) 또는 `./seed-real.sh` (Mac/Linux) 실행.
 
 ## 시연 시나리오
 
@@ -172,6 +179,10 @@ WEB_PORT=3000
 DB_PATH=./data/gov.db
 MOCK_AGENTS=1                   # 키가 있어도 mock 모드 강제
 ```
+
+## 사용자 매뉴얼 (부서별 시나리오 포함)
+
+[`_docs/USER_MANUAL.md`](_docs/USER_MANUAL.md) — 부서별 권장 키 구성, 발급 가이드, FAQ, 보안 체크리스트.
 
 ## 모델 변경 / 비용
 

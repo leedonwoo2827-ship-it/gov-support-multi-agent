@@ -85,6 +85,26 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS idx_events_case ON events(case_id, id);
 
+-- 사용자 설정 (API 키 등) — 평문 저장, 로컬 SQLite 한정. 외부 노출 금지.
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 데이터 적재 이력 — 누가/언제/어디서/몇 건 가져왔는지 기록
+CREATE TABLE IF NOT EXISTS import_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL,                     -- 'real' | 'fixture'
+  sources_json TEXT NOT NULL,             -- ["kstartup", "bizinfo", ...]
+  max_per_source INTEGER,
+  wipe INTEGER NOT NULL,                  -- 0 | 1
+  count_inserted INTEGER NOT NULL,
+  count_total_after INTEGER NOT NULL,
+  warnings_json TEXT,
+  ran_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS bulk_runs (
   id TEXT PRIMARY KEY,
   case_ids_json TEXT NOT NULL,

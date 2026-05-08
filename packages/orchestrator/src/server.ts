@@ -13,6 +13,8 @@ import eventsRoute from "./routes/events.js";
 import exportRoute from "./routes/export.js";
 import programsRoute from "./routes/programs.js";
 import profilesRoute from "./routes/profiles.js";
+import settingsRoute from "./routes/settings.js";
+import adminRoute from "./routes/admin.js";
 
 // DB 초기화 (스키마 자동 적용)
 getDb();
@@ -56,6 +58,8 @@ app.route("/api/posts", postsRoute);
 app.route("/api/runs", runsRoute);
 app.route("/api/events", eventsRoute);
 app.route("/api/export", exportRoute);
+app.route("/api/settings", settingsRoute);
+app.route("/api/admin", adminRoute);
 
 const port = Number(process.env.ORCHESTRATOR_PORT ?? 8787);
 serve({ fetch: app.fetch, port }, ({ port }) => {

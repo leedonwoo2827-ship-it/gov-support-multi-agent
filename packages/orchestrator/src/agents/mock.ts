@@ -1,11 +1,12 @@
 // Mock 에이전트 — ANTHROPIC_API_KEY 없을 때 시연용 결정론적 응답 생성
-// 실제 LLM 호출 없이 페이로드 스키마에 맞는 합리적인 더미 결과를 만든다.
 
 import type { AgentId, CompanyProfile, Program } from "@gov/shared";
 import { AGENT_PAYLOAD_SCHEMAS } from "@gov/shared";
+import { getAnthropicKey } from "../board/settings.js";
 
 export function isMockMode(): boolean {
-  return !process.env.ANTHROPIC_API_KEY?.trim() || process.env.MOCK_AGENTS === "1";
+  if (process.env.MOCK_AGENTS === "1") return true;
+  return !getAnthropicKey();
 }
 
 export function mockPayload(agentId: AgentId, profile: CompanyProfile, program: Program): unknown {

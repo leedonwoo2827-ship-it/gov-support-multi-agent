@@ -11,19 +11,12 @@ import {
 } from "@gov/mcp-tools";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { ZodSchema } from "zod";
+import { getApiKeys } from "../board/settings.js";
 
 interface ToolDef {
   schema: ZodSchema<any>;
   handler: (input: any) => Promise<unknown>;
   description: string;
-}
-
-function getApiKeys() {
-  return {
-    bizinfoApiKey: process.env["BIZINFO_API_KEY"]?.trim() || undefined,
-    smes24Token: process.env["SMES24_API_KEY"]?.trim() || undefined,
-    publicDataServiceKey: process.env["PUBLIC_DATA_SERVICE_KEY"]?.trim() || undefined,
-  };
 }
 
 const TOOLS: Record<string, ToolDef> = {

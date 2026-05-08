@@ -4,7 +4,8 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { SearchFiltersSchema } from "@gov/shared";
 import { searchPrograms, bulkUpsertPrograms, countPrograms } from "../board/programs.js";
-import { searchGovernmentSupport, normalizeBizinfo, normalizeKstartup, normalizeSmes24 } from "@gov/mcp-tools";
+import { searchGovernmentSupport } from "@gov/mcp-tools";
+import { getApiKeys } from "../board/settings.js";
 import type { Program } from "@gov/shared";
 
 const router = new Hono();
@@ -17,13 +18,9 @@ router.post("/", zValidator("json", SearchFiltersSchema), async (c) => {
   let result = searchPrograms(filters);
 
   // 2) 결과 0 이거나 refresh 요청 시 정부 API 호출 시도
-  if ((result.total === 0 || refresh) && shouldHitApi()) {
+  const apiKeys = getApiKeys();
+  if ((result.total === 0 || refresh) && (apiKeys.publicDataServiceKey || apiKeys.bizinfoApiKey || apiKeys.smes24Token)) {
     try {
-      const apiKeys = {
-        bizinfoApiKey: process.env.BIZINFO_API_KEY?.trim() || undefined,
-        smes24Token: process.env.SMES24_API_KEY?.trim() || undefined,
-        publicDataServiceKey: process.env.PUBLIC_DATA_SERVICE_KEY?.trim() || undefined,
-      };
       const apiResult = await searchGovernmentSupport(
         {
           keyword: filters.keyword,
@@ -72,11 +69,5 @@ router.post("/", zValidator("json", SearchFiltersSchema), async (c) => {
     warnings: countPrograms() === 0 ? ["DB가 비어있습니다. pnpm seed 로 fixture 를 적재하거나 .env 에 API 키를 설정하세요."] : [],
   });
 });
-
-function shouldHitApi(): boolean {
-  return Boolean(
-    process.env.BIZINFO_API_KEY || process.env.SMES24_API_KEY || process.env.PUBLIC_DATA_SERVICE_KEY,
-  );
-}
 
 export default router;

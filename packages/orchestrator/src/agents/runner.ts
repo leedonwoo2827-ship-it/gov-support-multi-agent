@@ -19,16 +19,14 @@ import { createPost } from "../board/posts.js";
 import { appendEvent } from "../board/events.js";
 import { estimateCostKrw } from "../lib/cost.js";
 import { isMockMode, mockPayload } from "./mock.js";
+import { getAnthropicKey } from "../board/settings.js";
 
 const MAX_TURNS = 8;
 
-let _client: Anthropic | null = null;
 function getClient(): Anthropic {
-  if (_client) return _client;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY 미설정");
-  _client = new Anthropic({ apiKey });
-  return _client;
+  const apiKey = getAnthropicKey();
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY 미설정 — 설정 페이지에서 입력하세요.");
+  return new Anthropic({ apiKey });
 }
 
 export interface RunAgentInput {
