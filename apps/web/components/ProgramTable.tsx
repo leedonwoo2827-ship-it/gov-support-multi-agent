@@ -63,9 +63,15 @@ export default function ProgramTable({ programs, total, selected, onToggle, onTo
 
 function formatDeadline(d: string | null): string {
   if (!d) return "상시";
-  try {
-    const days = Math.ceil((new Date(d).getTime() - Date.now()) / 86_400_000);
-    if (days < 0) return "마감";
-    return `D-${days}`;
-  } catch { return d; }
+  // YYYYMMDD → YYYY-MM-DD 정규화 (DB 에 옛날 포맷 남아있을 수 있음)
+  let iso = d;
+  if (/^\d{8}$/.test(d)) {
+    iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+  }
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return d;             // 파싱 실패 시 원문
+  const days = Math.ceil((t - Date.now()) / 86_400_000);
+  if (days < 0) return "마감";
+  if (days === 0) return "D-DAY";
+  return `D-${days}`;
 }
