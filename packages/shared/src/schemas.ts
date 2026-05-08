@@ -109,11 +109,11 @@ export type ChecklistPost = z.infer<typeof ChecklistPostSchema>;
 
 // ── 에이전트 4: 마일스톤 일정표 ─────────────────────────────────────
 export const MilestoneSchema = z.object({
-  date: z.string(),                            // ISO date
-  daysBeforeDeadline: z.number(),
-  titleKo: z.string(),
-  owner: z.enum(["신청자", "대표", "외부"]),
-  deliverables: z.array(z.string()),
+  date: z.string(),                            // YYYY-MM-DD 또는 자유 형식 (검증 시 강제 안 함)
+  daysBeforeDeadline: z.number().int(),        // 정수
+  titleKo: z.string().min(1),
+  owner: z.string().min(1),                    // 신청자/대표/외부 권장하지만 자유 입력 허용
+  deliverables: z.array(z.string()).default([]),
   dependsOnDocs: z.array(z.string()).default([]),
 });
 export type Milestone = z.infer<typeof MilestoneSchema>;
@@ -121,8 +121,8 @@ export type Milestone = z.infer<typeof MilestoneSchema>;
 export const SchedulePostSchema = z.object({
   deadline: z.string(),
   totalDays: z.number(),
-  milestones: z.array(MilestoneSchema),
-  criticalPathNotes: z.string(),
+  milestones: z.array(MilestoneSchema).min(1),
+  criticalPathNotes: z.string().default(""),
   holidayAdjustments: z.array(z.string()).default([]),
 });
 export type SchedulePost = z.infer<typeof SchedulePostSchema>;

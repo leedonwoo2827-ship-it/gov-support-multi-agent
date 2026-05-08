@@ -8,6 +8,7 @@ interface Props {
   agentLabel: string;
   programTitle: string;
   caseId: string;
+  errorText?: string | null;
 }
 
 const AGENT_EMOJI: Record<string, string> = {
@@ -17,7 +18,7 @@ const AGENT_EMOJI: Record<string, string> = {
   milestone: "📅",
 };
 
-export default function PostCard({ post, status, agentLabel, programTitle }: Props) {
+export default function PostCard({ post, status, agentLabel, programTitle, errorText }: Props) {
   const [open, setOpen] = useState(false);
 
   const statusLabel = {
@@ -51,6 +52,17 @@ export default function PostCard({ post, status, agentLabel, programTitle }: Pro
             </div>
           )}
         </>
+      ) : status === "failed" ? (
+        <div className="text-xs">
+          <p className="text-red-700 font-medium mb-1">❌ 실패</p>
+          {errorText ? (
+            <pre className="whitespace-pre-wrap break-all bg-red-50 p-2 rounded border border-red-200 text-red-800 max-h-32 overflow-y-auto">
+              {errorText}
+            </pre>
+          ) : (
+            <p className="text-gray-500">에러 메시지 없음. orchestrator 콘솔 확인.</p>
+          )}
+        </div>
       ) : (
         <p className="text-xs text-gray-400">{status === "running" ? "분석 진행 중..." : "대기 중"}</p>
       )}

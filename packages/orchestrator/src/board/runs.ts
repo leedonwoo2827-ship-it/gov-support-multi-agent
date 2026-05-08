@@ -70,6 +70,18 @@ export function getRunsByCase(caseId: string): AgentRunRow[] {
   return rows.map(rowToRun);
 }
 
+// API 응답에 errorText 노출 (대시보드 PostCard 에서 표시)
+export function getRunsByCaseForApi(caseId: string) {
+  return getRunsByCase(caseId).map(r => ({
+    agentId: r.agentId,
+    status: r.status,
+    errorText: r.errorText,
+    costKrw: r.costKrw,
+    tokensIn: r.tokensIn,
+    tokensOut: r.tokensOut,
+  }));
+}
+
 // ── bulk run ────────────────────────────────────────────────────────
 export function createBulkRun(caseIds: string[], totalAgents: number): string {
   const id = ulid();

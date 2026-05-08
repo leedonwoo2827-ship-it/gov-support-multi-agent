@@ -14,7 +14,7 @@ interface CaseRow {
   case: Case;
   program: Program;
   posts: PostRow[];
-  runs: { agentId: string; status: string }[];
+  runs: { agentId: string; status: string; errorText?: string | null }[];
 }
 
 interface Props {
@@ -36,9 +36,27 @@ export default function BoardGrid({ caseRows }: Props) {
       <h2 className="font-semibold text-gov-blue text-lg">📌 게시판 — 에이전트 분석 결과</h2>
       {caseRows.map(({ case: kase, program, posts, runs }) => (
         <article key={kase.id} className="gov-card p-3">
-          <header className="mb-3 pb-2 border-b border-gov-line">
-            <h3 className="font-semibold">{program.title}</h3>
-            <p className="text-xs text-gray-500">{program.agency} · 마감 {program.deadline ?? "상시"} · 케이스 {kase.id.slice(-8)}</p>
+          <header className="mb-3 pb-2 border-b border-gov-line flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="font-semibold">{program.title}</h3>
+              <p className="text-xs text-gray-500">
+                {program.agency} · 마감 {program.deadline ?? "상시"} · 케이스 {kase.id.slice(-8)}
+              </p>
+            </div>
+            <div className="flex gap-1 text-xs">
+              <a
+                href={`/api/export/cases/${kase.id}/md`}
+                download
+                className="gov-btn-sub py-1 px-2"
+                title="이 케이스의 4개 에이전트 결과를 통합 마크다운 보고서로 다운로드"
+              >📥 보고서 (MD)</a>
+              <a
+                href={`/api/export/cases/${kase.id}/json`}
+                download
+                className="gov-btn-sub py-1 px-2"
+                title="구조화 JSON 다운로드"
+              >📥 JSON</a>
+            </div>
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {AGENTS.map(a => {
@@ -53,6 +71,7 @@ export default function BoardGrid({ caseRows }: Props) {
                   agentLabel={a.label}
                   programTitle={program.title}
                   caseId={kase.id}
+                  errorText={run?.errorText ?? null}
                 />
               );
             })}

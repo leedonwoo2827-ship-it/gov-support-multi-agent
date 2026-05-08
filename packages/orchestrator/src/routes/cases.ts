@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { createOrGetCase, getCase, listCases } from "../board/cases.js";
 import { listPostsByCase } from "../board/posts.js";
-import { getRunsByCase } from "../board/runs.js";
+import { getRunsByCaseForApi } from "../board/runs.js";
 import { getProgram } from "../board/programs.js";
 import { getProfile, getOrCreateDemoProfile } from "../board/profiles.js";
 import { runOne, runBulk } from "../agents/orchestrator.js";
@@ -34,7 +34,7 @@ router.get("/:id", (c) => {
   const program = getProgram(kase.programId);
   const profile = getProfile(kase.companyProfileId);
   const posts = listPostsByCase(id);
-  const runs = getRunsByCase(id);
+  const runs = getRunsByCaseForApi(id);
   return c.json({ case: kase, program, profile, posts, runs });
 });
 
