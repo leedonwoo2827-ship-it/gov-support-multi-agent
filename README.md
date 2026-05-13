@@ -10,7 +10,7 @@
 
 부서마다 데이터 소스 · 회사 프로파일 · 4개 에이전트의 시스템 프롬프트 · mock 응답이 **자동 분기**됩니다. 출력 스키마와 UI 4-카드 그리드는 공통이라 PM이 부서를 바꿔도 학습 비용 0.
 
-기존 [dify-gov-support-poc](https://github.com/leedonwoo2827-ship-it/dify-gov-support-poc) 의 단일 Dify chatflow 구조를 4-에이전트 게시판으로 재구축. 참고: [sonol-multi-agent](https://github.com/volition79/sonol-multi-agent).
+참고 아키텍처: [sonol-multi-agent](https://github.com/volition79/sonol-multi-agent).
 
 ## 4개 에이전트
 
@@ -202,19 +202,6 @@ MOCK_AGENTS=1                   # 키가 있어도 mock 모드 강제
 - Gemini 2.5 Flash-Lite: **~15~25원**
 - GPT-4o mini: ~22원
 - Mock 모드: **0원**
-
-## 기존 PoC 와의 차이
-
-| 항목 | 기존 (Dify chatflow) | 새 PoC |
-|---|---|---|
-| 에이전트 수 | 1 (단일 LLM 라우터) | 4 (전문가 분리) |
-| 출력 구조 | 자유 텍스트 한 채팅창 | Zod 검증된 JSON × 4 + 마크다운 본문 |
-| 동시성 | 순차 turn-by-turn | 4N 병렬 (asyncio.gather 패턴) |
-| 데이터 저장 | JSON 파일 | SQLite (.db 다운로드 가능) |
-| UI | Dify 채팅 | 정부24 풍 대시보드 |
-| 검색 캐싱 | 없음 (매번 API) | SQLite 24h TTL |
-| 시연 시 | API 키 필수 | mock 모드로 키 없이도 시연 |
-| 다운로드 | 없음 | DB / CSV / JSON / Markdown |
 
 ## 개발
 

@@ -40,7 +40,7 @@ Phase 5 ExitPlanMode            → 승인 요청
 컨텍스트가 양쪽 raw 데이터로 오염된다. 그래서 한 메시지 안에 Agent 호출을 두 개 넣었다:
 
 ```
-Agent(subagent_type=Explore, prompt="dify-gov-support-poc 조사 ...")
+Agent(subagent_type=Explore, prompt="이전 PoC repo 조사 ...")
 Agent(subagent_type=Explore, prompt="sonol-multi-agent 조사 ...")
 ```
 

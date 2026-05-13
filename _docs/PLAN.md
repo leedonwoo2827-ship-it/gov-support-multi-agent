@@ -2,8 +2,7 @@
 
 ## Context
 
-기존 [dify-gov-support-poc](https://github.com/leedonwoo2827-ship-it/dify-gov-support-poc)는
-TypeScript MCP 서버(14개 정부지원 API 도구) 위에 단일 Dify chatflow를 얹은 구조였다.
+이전 PoC는 TypeScript MCP 서버(14개 정부지원 API 도구) 위에 단일 챗플로우를 얹은 구조였다.
 14개 도구 결과가 한 채팅창에 섞여 나와서 시연 임팩트가 약했고("구려서"), 비동기/병렬/구조화된 출력이 없었다.
 
 이번 재구축의 목표:
@@ -443,11 +442,11 @@ app.get ('/api/export/cases/:id.md',  c => exportCaseMarkdown(c))               
 **Day 2 오후 (3h) — 다운로드 + 마무리**
 12. `routes/export.ts` — `gov.db` 스트림, programs/posts CSV (PapaParse), case 통합 Markdown 보고서.
 13. `views/{Eligibility,PlanDraft,Checklist,Schedule}View.tsx` — 각 페이로드 전용 렌더러 (자격평가는 점수 게이지, 일정표는 간단 간트).
-14. `README.md` — Dify 14-tool → 4 에이전트 매핑 표, `pnpm dev`, 시연 시나리오 1개 (스마트팩토리 + AI바우처 두 건 체크 → 분석 → DB 다운로드).
+14. `README.md` — 14-tool → 4 에이전트 매핑 표, `pnpm dev`, 시연 시나리오 1개 (스마트팩토리 + AI바우처 두 건 체크 → 분석 → DB 다운로드).
 
 ## 14개 도구 → 4개 에이전트 매핑
 
-| 기존 Dify 도구 | 새 owner 에이전트 |
+| 기존 도구 | 새 owner 에이전트 |
 |---|---|
 | checkEligibility, evaluateStartupApplication | 자격평가 |
 | draftBusinessPlan, search_gov_support_bizinfo | 사업계획서 초안 |
@@ -470,10 +469,10 @@ app.get ('/api/export/cases/:id.md',  c => exportCaseMarkdown(c))               
 - `gov_support_mcp/vitest.config.ts`, `tsconfig.json`
 
 폐기:
-- `dify-config/` (Dify chatflow DSL)
-- `dify-host/dify/docker/` (Podman compose)
+- 기존 챗플로우 DSL 디렉토리
+- 컨테이너 compose 설정
 - `gov_support_mcp/src/server.ts` (HTTP 서버 — 라이브러리 import로 대체)
-- `docs/02_OpenAPI.yaml`, `docs/04_Dify_등록_가이드.md`
+- 기존 OpenAPI / 챗플로우 등록 가이드 문서
 
 ## 핵심 수정 파일
 

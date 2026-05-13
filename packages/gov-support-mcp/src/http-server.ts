@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * gov-support HTTP 어댑터 (Dify 연동용)
+ * gov-support HTTP 어댑터 (외부 챗플로우 연동용)
  *
  * 기존 MCP 서버(src/server.ts)의 14개 도구를 Express HTTP 엔드포인트로 노출한다.
- * Dify 의 Custom Tool(OpenAPI 3.0) 로 등록되어 챗플로우에서 호출된다.
+ * OpenAPI 3.0 스펙으로 외부 시스템에서 Custom Tool 로 등록 가능.
  *
  * 주요 특징:
  *   - 도구 함수를 직접 import (MCP 트랜스포트 우회)
@@ -83,7 +83,7 @@ const OPENAPI_YAML_PATH = path.resolve(REPO_ROOT, "..", "docs", "02_OpenAPI.yaml
 const ADAPTER_TOKEN = process.env.ADAPTER_TOKEN;
 
 function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  // 헬스체크 + OpenAPI 스키마는 무인증 통과 (공개 메타데이터, Dify 가져가기용)
+  // 헬스체크 + OpenAPI 스키마는 무인증 통과 (공개 메타데이터, 외부 시스템 가져가기용)
   if (req.path === "/healthz" || req.path === "/openapi.yaml") return next();
   if (!ADAPTER_TOKEN) return next(); // 개발용: 토큰 미설정 시 검증 스킵
 
@@ -229,7 +229,7 @@ app.get("/healthz", (_req, res) => {
   });
 });
 
-// OpenAPI 스펙 노출 (Dify Custom Tool 등록 시 직접 URL 입력 가능)
+// OpenAPI 스펙 노출 (외부 Custom Tool 등록 시 직접 URL 입력 가능)
 app.get("/openapi.yaml", async (_req, res) => {
   try {
     const content = await fs.readFile(OPENAPI_YAML_PATH, "utf-8");
@@ -339,7 +339,7 @@ app.listen(PORT, () => {
   logger.info(`gov-support HTTP 어댑터 시작 — http://localhost:${PORT}`);
   logger.info(`헬스 체크: http://localhost:${PORT}/healthz`);
   logger.info(
-    `Dify(컨테이너) 연결 URL: http://host.docker.internal:${PORT} ` +
+    `컨테이너 외부에서 연결 시 URL: http://host.docker.internal:${PORT} ` +
       `(인증: ${ADAPTER_TOKEN ? "Bearer " + ADAPTER_TOKEN.slice(0, 4) + "***" : "없음(개발모드)"})`
   );
 });
