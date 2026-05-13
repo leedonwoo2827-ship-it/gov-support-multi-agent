@@ -9,11 +9,15 @@ import { z } from "zod";
 import { fetchBizinfoList } from "../clients/bizinfoSupport.js";
 import { fetchKstartupList } from "../clients/kstartupSupport.js";
 import { fetchExtPblancInfo } from "../clients/smes24PublicNotice.js";
+import { fetchG2bBidList } from "../clients/g2bBids.js";
+import { fetchKoicaOdaList } from "../clients/koicaOda.js";
 import {
   deduplicate,
   normalizeBizinfo,
   normalizeKstartup,
   normalizeSmes24,
+  normalizeG2bBid,
+  normalizeKoica,
   type NormalizedAnnouncement,
 } from "../core/dedup.js";
 import type { ApiSource } from "../types/common.js";
@@ -32,7 +36,7 @@ export const SearchGovSupportSchema = z.object({
     .optional(),
   region: z.string().optional(),
   sources: z
-    .array(z.enum(["bizinfo", "kstartup", "smes24"]))
+    .array(z.enum(["bizinfo", "kstartup", "smes24", "g2b-edu", "g2b-oda", "koica", "edcf", "kotra"]))
     .optional()
     .default(["bizinfo", "kstartup"]),
   onlyRecruiting: z.boolean().optional().default(true),
@@ -57,7 +61,7 @@ export interface UnifiedSearchResult {
   totalBeforeDedup: number;
   totalAfterDedup: number;
   dedupRemoved: number;
-  sourceStats: Record<ApiSource | string, { fetched: number; error?: string }>;
+  sourceStats: Record<ApiSource | string, { fetched: number; error?: string; bodySnippet?: string; httpStatus?: number }>;
   announcements: NormalizedAnnouncement[];
   warnings: string[];
 }
@@ -68,7 +72,7 @@ export async function searchGovernmentSupport(
 ): Promise<UnifiedSearchResult> {
   const { keyword, field, region, sources, onlyRecruiting, maxPerSource, strDt, endDt } = input;
   const warnings: string[] = [];
-  const sourceStats: Record<string, { fetched: number; error?: string }> = {};
+  const sourceStats: Record<string, { fetched: number; error?: string; bodySnippet?: string; httpStatus?: number }> = {};
   const allItems: NormalizedAnnouncement[] = [];
 
   const tasks: Promise<void>[] = [];
@@ -190,6 +194,104 @@ export async function searchGovernmentSupport(
           const msg = e instanceof Error ? e.message : String(e);
           warnings.push(`kstartup 오류: ${msg}`);
           sourceStats["kstartup"] = { fetched: 0, error: msg };
+        }
+      })()
+    );
+  }
+
+  // ── G2B 교육 (교육사업부) ───────────────────────────────────────────────
+  if (sources.includes("g2b-edu")) {
+    tasks.push(
+      (async () => {
+        if (!keys.publicDataServiceKey) {
+          warnings.push("PUBLIC_DATA_SERVICE_KEY 미설정 — g2b-edu 소스 건너뜀");
+          sourceStats["g2b-edu"] = { fetched: 0, error: "API 키 없음" };
+          return;
+        }
+        try {
+          const res = await fetchG2bBidList({
+            serviceKey: keys.publicDataServiceKey,
+            category: "edu",
+            keyword,
+            pageNo: 1,
+            numOfRows: maxPerSource,
+          });
+          if (!res.ok) {
+            warnings.push(`g2b-edu HTTP ${res.httpStatus} 오류 (스펙 미검증 가능) — 응답: ${res.bodySnippet.slice(0, 200)}`);
+            sourceStats["g2b-edu"] = { fetched: 0, error: `HTTP ${res.httpStatus}`, bodySnippet: res.bodySnippet, httpStatus: res.httpStatus };
+            return;
+          }
+          sourceStats["g2b-edu"] = { fetched: res.items.length, httpStatus: res.httpStatus, bodySnippet: res.items.length === 0 ? res.bodySnippet : undefined };
+          allItems.push(...res.items.map((it) => normalizeG2bBid(it as Record<string, unknown>, "edu")));
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          warnings.push(`g2b-edu 오류: ${msg}`);
+          sourceStats["g2b-edu"] = { fetched: 0, error: msg };
+        }
+      })()
+    );
+  }
+
+  // ── G2B ODA (해외사업부) ─────────────────────────────────────────────────
+  if (sources.includes("g2b-oda")) {
+    tasks.push(
+      (async () => {
+        if (!keys.publicDataServiceKey) {
+          warnings.push("PUBLIC_DATA_SERVICE_KEY 미설정 — g2b-oda 소스 건너뜀");
+          sourceStats["g2b-oda"] = { fetched: 0, error: "API 키 없음" };
+          return;
+        }
+        try {
+          const res = await fetchG2bBidList({
+            serviceKey: keys.publicDataServiceKey,
+            category: "oda",
+            keyword,
+            pageNo: 1,
+            numOfRows: maxPerSource,
+          });
+          if (!res.ok) {
+            warnings.push(`g2b-oda HTTP ${res.httpStatus} 오류 — 응답: ${res.bodySnippet.slice(0, 200)}`);
+            sourceStats["g2b-oda"] = { fetched: 0, error: `HTTP ${res.httpStatus}`, bodySnippet: res.bodySnippet, httpStatus: res.httpStatus };
+            return;
+          }
+          sourceStats["g2b-oda"] = { fetched: res.items.length, httpStatus: res.httpStatus, bodySnippet: res.items.length === 0 ? res.bodySnippet : undefined };
+          allItems.push(...res.items.map((it) => normalizeG2bBid(it as Record<string, unknown>, "oda")));
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          warnings.push(`g2b-oda 오류: ${msg}`);
+          sourceStats["g2b-oda"] = { fetched: 0, error: msg };
+        }
+      })()
+    );
+  }
+
+  // ── KOICA ODA (해외사업부) ───────────────────────────────────────────────
+  if (sources.includes("koica")) {
+    tasks.push(
+      (async () => {
+        if (!keys.publicDataServiceKey) {
+          warnings.push("PUBLIC_DATA_SERVICE_KEY 미설정 — koica 소스 건너뜀");
+          sourceStats["koica"] = { fetched: 0, error: "API 키 없음" };
+          return;
+        }
+        try {
+          const res = await fetchKoicaOdaList({
+            serviceKey: keys.publicDataServiceKey,
+            keyword,
+            pageNo: 1,
+            numOfRows: maxPerSource,
+          });
+          if (!res.ok) {
+            warnings.push(`koica HTTP ${res.httpStatus} 오류 — 응답: ${res.bodySnippet.slice(0, 200)}`);
+            sourceStats["koica"] = { fetched: 0, error: `HTTP ${res.httpStatus}`, bodySnippet: res.bodySnippet, httpStatus: res.httpStatus };
+            return;
+          }
+          sourceStats["koica"] = { fetched: res.items.length, httpStatus: res.httpStatus, bodySnippet: res.items.length === 0 ? res.bodySnippet : undefined };
+          allItems.push(...res.items.map((it) => normalizeKoica(it as Record<string, unknown>)));
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          warnings.push(`koica 오류: ${msg}`);
+          sourceStats["koica"] = { fetched: 0, error: msg };
         }
       })()
     );

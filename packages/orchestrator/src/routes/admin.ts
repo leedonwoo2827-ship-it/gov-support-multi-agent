@@ -1,11 +1,18 @@
 // 관리자 라우트 — 실데이터 시드 (대시보드 버튼에서 호출)
 
 import { Hono } from "hono";
-import { searchGovernmentSupport } from "@gov/mcp-tools";
+import { searchGovernmentSupport, fetchG2bScsbidList } from "@gov/mcp-tools";
 import { getDb } from "../db/client.js";
 import { bulkUpsertPrograms, countPrograms } from "../board/programs.js";
+import { bulkUpsertAwards, countAwards } from "../board/awards.js";
 import { getApiKeys } from "../board/settings.js";
-import type { Program } from "@gov/shared";
+import type { Program, Department } from "@gov/shared";
+
+function inferDepartmentFromSource(source: string): Department {
+  if (source === "g2b-edu") return "edu";
+  if (source === "koica" || source === "g2b-oda" || source === "edcf" || source === "kotra") return "oda";
+  return "planning";
+}
 
 interface ImportHistoryRow {
   id: number;
@@ -45,7 +52,10 @@ function logImport(input: {
 /**
  * 정부 API 의 다양한 날짜 포맷을 ISO YYYY-MM-DD 로 정규화.
  * - "20260512" → "2026-05-12"
+ * - "20260512180000" → "2026-05-12" (G2B datetime 14자)
+ * - "202605121800" → "2026-05-12"  (12자)
  * - "2026-05-12" → "2026-05-12"
+ * - "2026-05-12 18:00:00" → "2026-05-12"
  * - "2026/05/12" → "2026-05-12"
  * - 빈 값 / 파싱 불가 → null
  */
@@ -53,6 +63,8 @@ function normalizeDate(d: string | null | undefined): string | null {
   if (!d) return null;
   const s = String(d).trim();
   if (!s) return null;
+  // G2B/KOICA datetime (12 or 14자) — 앞 8자만 잘라 사용
+  if (/^\d{12,14}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
   if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
   if (/^\d{4}[-/.]\d{2}[-/.]\d{2}/.test(s)) {
     return s.slice(0, 10).replace(/[/.]/g, "-");
@@ -83,10 +95,26 @@ const router = new Hono();
 
 router.post("/seed-real", async (c) => {
   const keys = getApiKeys();
-  const usedSources: string[] = [];
-  if (keys.publicDataServiceKey) usedSources.push("kstartup");
-  if (keys.bizinfoApiKey) usedSources.push("bizinfo");
-  if (keys.smes24Token) usedSources.push("smes24");
+
+  // 사용자가 [받을 건수] / sources / wipe / department 입력 가능
+  const body = await c.req.json().catch(() => ({}));
+  const maxPerSource = Math.min(Math.max(Number(body?.maxPerSource ?? 100), 10), 500);
+  const wipe = body?.wipe === true;  // 기본 false — 명시적 동의해야 wipe (fixture 보호)
+  const departmentFilter = body?.department as Department | undefined;
+
+  // 부서별 sources 결정 — body.sources 가 있으면 우선, 없으면 키 보유 + 부서 필터로 자동 결정
+  let usedSources: string[] = Array.isArray(body?.sources) && body.sources.length > 0
+    ? body.sources
+    : [];
+  if (usedSources.length === 0) {
+    if (keys.publicDataServiceKey) {
+      if (!departmentFilter || departmentFilter === "planning") usedSources.push("kstartup");
+      if (!departmentFilter || departmentFilter === "edu") usedSources.push("g2b-edu");
+      if (!departmentFilter || departmentFilter === "oda") usedSources.push("koica");
+    }
+    if (keys.bizinfoApiKey && (!departmentFilter || departmentFilter === "planning")) usedSources.push("bizinfo");
+    if (keys.smes24Token && (!departmentFilter || departmentFilter === "planning")) usedSources.push("smes24");
+  }
 
   if (usedSources.length === 0) {
     return c.json({
@@ -94,11 +122,6 @@ router.post("/seed-real", async (c) => {
       error: "API 키가 없습니다. 설정 페이지에서 PUBLIC_DATA_SERVICE_KEY 또는 BIZINFO_API_KEY 를 입력하세요.",
     }, 400);
   }
-
-  // 사용자가 [받을 건수] 입력 가능. 기본 100, 최대 500 (소스당)
-  const body = await c.req.json().catch(() => ({}));
-  const maxPerSource = Math.min(Math.max(Number(body?.maxPerSource ?? 100), 10), 500);
-  const wipe = body?.wipe !== false;  // 기본 true (기존 데이터 삭제 후 적재)
 
   try {
     const result = await searchGovernmentSupport(
@@ -129,11 +152,12 @@ router.post("/seed-real", async (c) => {
           : a.announcementId;
         const raw = a.rawItem as Record<string, any>;
         // 본문 추출 (소스별 필드명 다름)
-        const summary = raw?.pblancNm || raw?.biz_pbanc_nm || null;
+        const summary = raw?.pblancNm || raw?.biz_pbanc_nm || raw?.bidNtceNm || raw?.bsnsNm || null;
         const rawText = [
           raw?.pblancCn,                                    // bizinfo 공고 내용
           raw?.pbanc_ctnt,                                  // kstartup 공고 내용
           raw?.bsns_sumry, raw?.aply_trgt_ctnt, raw?.bsns_inq_ctnt,
+          raw?.bidNtceNm, raw?.bsnsNm, raw?.bsns_areaNm,    // G2B / KOICA
           a.title,
           a.agency,
           a.field,
@@ -153,6 +177,7 @@ router.post("/seed-real", async (c) => {
           url: a.detailUrl ?? null,
           summary,
           rawText,
+          department: a.department ?? inferDepartmentFromSource(a.source),
         };
       });
 
@@ -167,6 +192,7 @@ router.post("/seed-real", async (c) => {
         DELETE FROM agent_runs;
         DELETE FROM cases;
         DELETE FROM programs;
+        DELETE FROM bid_awards;
       `);
     }
     const { inserted, skipped: skippedDb } = bulkUpsertPrograms(programs);
@@ -176,6 +202,39 @@ router.post("/seed-real", async (c) => {
     if (totalSkipped > 0) {
       allWarnings.push(`필수 필드 누락 ${totalSkipped}건 건너뜀`);
     }
+
+    // ── 낙찰정보 부가 수집 (A1: 자격평가 가격경쟁력 axis 컨텍스트) ──
+    // PUBLIC_DATA_SERVICE_KEY 가 있을 때만, 부서별로 별도 호출.
+    const awardsStats: Record<string, { fetched: number; inserted: number; error?: string }> = {};
+    if (keys.publicDataServiceKey) {
+      const scsbidCategories: Array<"edu" | "oda"> = [];
+      // department 필터 없거나 해당 부서일 때만
+      if (!departmentFilter || departmentFilter === "edu") scsbidCategories.push("edu");
+      if (!departmentFilter || departmentFilter === "oda") scsbidCategories.push("oda");
+
+      for (const cat of scsbidCategories) {
+        try {
+          const r = await fetchG2bScsbidList({
+            serviceKey: keys.publicDataServiceKey,
+            category: cat,
+            pageNo: 1,
+            numOfRows: 100,
+          });
+          if (!r.ok) {
+            awardsStats[`g2b-scsbid-${cat}`] = { fetched: 0, inserted: 0, error: r.bodySnippet.slice(0, 120) };
+            allWarnings.push(`낙찰정보(${cat}) HTTP ${r.httpStatus} — ${r.bodySnippet.slice(0, 120)}`);
+          } else {
+            const { inserted: ai } = bulkUpsertAwards(r.items, cat);
+            awardsStats[`g2b-scsbid-${cat}`] = { fetched: r.items.length, inserted: ai };
+          }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          awardsStats[`g2b-scsbid-${cat}`] = { fetched: 0, inserted: 0, error: msg };
+          allWarnings.push(`낙찰정보(${cat}) 오류: ${msg}`);
+        }
+      }
+    }
+    const awardsTotalAfter = countAwards();
 
     logImport({
       kind: "real",
@@ -195,6 +254,8 @@ router.post("/seed-real", async (c) => {
       maxPerSource,
       wipe,
       sourceStats: result.sourceStats,
+      awardsStats,
+      awardsTotalAfter,
       warnings: allWarnings,
     });
   } catch (err) {

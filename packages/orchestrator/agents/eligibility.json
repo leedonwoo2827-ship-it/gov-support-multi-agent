@@ -6,7 +6,12 @@
   "model": "gemini-3-flash-preview",
   "max_tokens": 4096,
   "temperature": 0.2,
-  "system_prompt_path": "prompts/eligibility.ko.md",
+  "system_prompt_path": {
+    "default": "prompts/eligibility.ko.md",
+    "planning": "prompts/eligibility.planning.ko.md",
+    "edu": "prompts/eligibility.edu.ko.md",
+    "oda": "prompts/eligibility.oda.ko.md"
+  },
   "tool_names": ["checkEligibility", "evaluateStartupApplication"],
   "depends_on": [],
   "output_schema": "EligibilityPost",

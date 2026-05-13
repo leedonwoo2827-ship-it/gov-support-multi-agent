@@ -7,25 +7,31 @@ import { getRunsByCaseForApi } from "../board/runs.js";
 import { getProgram } from "../board/programs.js";
 import { getProfile, getOrCreateDemoProfile } from "../board/profiles.js";
 import { runOne, runBulk } from "../agents/orchestrator.js";
-import { AgentIdEnum } from "@gov/shared";
+import { AgentIdEnum, DepartmentEnum, type Department } from "@gov/shared";
 
 const router = new Hono();
 
 const CreateCaseSchema = z.object({
   programId: z.string(),
   companyProfileId: z.string().optional(),
+  department: DepartmentEnum.optional(),
 });
 
 router.post("/", zValidator("json", CreateCaseSchema), async (c) => {
-  const { programId, companyProfileId } = c.req.valid("json");
-  const profileId = companyProfileId ?? getOrCreateDemoProfile().id;
+  const { programId, companyProfileId, department } = c.req.valid("json");
+  const dept = department ?? "planning";
+  const profileId = companyProfileId ?? getOrCreateDemoProfile(dept).id;
   const program = getProgram(programId);
   if (!program) return c.json({ error: "공고 없음" }, 404);
-  const kase = createOrGetCase(profileId, programId);
+  const kase = createOrGetCase(profileId, programId, null, dept);
   return c.json({ case: kase, program });
 });
 
-router.get("/", (c) => c.json({ cases: listCases() }));
+router.get("/", (c) => {
+  const raw = c.req.query("department");
+  const dept = raw && DepartmentEnum.safeParse(raw).success ? raw as Department : undefined;
+  return c.json({ cases: listCases(dept) });
+});
 
 router.get("/:id", (c) => {
   const id = c.req.param("id");
@@ -46,6 +52,7 @@ router.post("/:id/run-all", async (c) => {
   const result = runBulk({
     companyProfileId: kase.companyProfileId,
     programIds: [kase.programId],
+    department: kase.department,
   });
   return c.json({ ok: true, ...result });
 });
@@ -61,6 +68,7 @@ router.post("/:id/agents/:agentId/run", async (c) => {
     companyProfileId: kase.companyProfileId,
     programId: kase.programId,
     agentId,
+    department: kase.department,
   });
   return c.json({ ok: true, caseId: id, agentId });
 });

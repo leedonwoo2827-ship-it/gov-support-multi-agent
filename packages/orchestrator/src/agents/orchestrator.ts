@@ -1,6 +1,6 @@
 // 다중 에이전트 fan-out — bulk run 단위로 N개 케이스 × 4개 에이전트 동시 실행
 
-import type { AgentId, CompanyProfile } from "@gov/shared";
+import type { AgentId, CompanyProfile, Department } from "@gov/shared";
 import { runAgent } from "./runner.js";
 import { ALL_AGENT_IDS } from "./loader.js";
 import { createOrGetCase, updateCaseStatus, type Case } from "../board/cases.js";
@@ -13,6 +13,7 @@ export interface BulkRunInput {
   companyProfileId: string;
   programIds: string[];
   agentIds?: AgentId[];                          // 기본: 4개 모두
+  department?: Department;                       // 부서 분기 (없으면 profile.department 사용)
 }
 
 export interface BulkRunResult {
@@ -27,6 +28,7 @@ export function runBulk(input: BulkRunInput): BulkRunResult {
   const profile = getProfile(input.companyProfileId);
   if (!profile) throw new Error(`회사 프로파일 없음: ${input.companyProfileId}`);
 
+  const department = input.department ?? profile.department;
   const agents = input.agentIds ?? ALL_AGENT_IDS;
   const cases: Case[] = [];
 
@@ -35,7 +37,7 @@ export function runBulk(input: BulkRunInput): BulkRunResult {
   const placeholderBulkId = createBulkRun([], totalAgents);
 
   for (const programId of input.programIds) {
-    const c = createOrGetCase(input.companyProfileId, programId, placeholderBulkId);
+    const c = createOrGetCase(input.companyProfileId, programId, placeholderBulkId, department);
     cases.push(c);
   }
 
@@ -44,7 +46,7 @@ export function runBulk(input: BulkRunInput): BulkRunResult {
   // 여기서는 새 bulk 만들기를 단순화: 위에서 placeholder 로 만들었고 cases 전부 그 bulkId 를 가짐.
 
   // background 실행
-  void runBulkBackground(profile, cases, agents, placeholderBulkId);
+  void runBulkBackground(profile, cases, agents, placeholderBulkId, department);
 
   return { bulkId: placeholderBulkId, cases };
 }
@@ -54,6 +56,7 @@ async function runBulkBackground(
   cases: Case[],
   agentIds: AgentId[],
   bulkId: string,
+  department: Department,
 ): Promise<void> {
   appendEvent({
     caseId: null, runId: null, agentId: null, kind: "progress",
@@ -69,7 +72,7 @@ async function runBulkBackground(
     }
     for (const agentId of agentIds) {
       tasks.push(
-        runAgent({ caseId: c.id, agentId, profile, program })
+        runAgent({ caseId: c.id, agentId, profile, program, department })
           .then(result => {
             incrementBulkCompleted(bulkId);
             return result;
@@ -101,14 +104,15 @@ async function runBulkBackground(
  * 단일 에이전트만 실행 (재실행 / 부분 실행).
  */
 export async function runOne(input: {
-  companyProfileId: string; programId: string; agentId: AgentId;
+  companyProfileId: string; programId: string; agentId: AgentId; department?: Department;
 }): Promise<{ caseId: string; ok: boolean; postId: string | null; error?: string }> {
   const profile = getProfile(input.companyProfileId);
   if (!profile) throw new Error("회사 프로파일 없음");
   const program = getProgram(input.programId);
   if (!program) throw new Error("공고 없음");
 
-  const c = createOrGetCase(input.companyProfileId, input.programId);
-  const result = await runAgent({ caseId: c.id, agentId: input.agentId, profile, program });
+  const department = input.department ?? profile.department;
+  const c = createOrGetCase(input.companyProfileId, input.programId, null, department);
+  const result = await runAgent({ caseId: c.id, agentId: input.agentId, profile, program, department });
   return { caseId: c.id, ok: result.ok, postId: result.postId, error: result.error };
 }

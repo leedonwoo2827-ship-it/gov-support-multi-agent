@@ -15,29 +15,33 @@ function rowToProgram(r: any): Program {
     url: r.url,
     summary: r.summary,
     rawText: r.raw_text,
+    department: r.department ?? null,
   };
 }
 
 export function upsertProgram(p: Program): void {
   const db = getDb();
   db.prepare(`
-    INSERT INTO programs (id, source, program_id, title, agency, region, industry, field, deadline, url, summary, raw_text, cached_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    INSERT INTO programs (id, source, program_id, title, agency, region, industry, field, deadline, url, summary, raw_text, department, cached_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     ON CONFLICT(id) DO UPDATE SET
       title = excluded.title, agency = excluded.agency, region = excluded.region,
       industry = excluded.industry, field = excluded.field, deadline = excluded.deadline,
       url = excluded.url, summary = excluded.summary, raw_text = excluded.raw_text,
+      department = excluded.department,
       cached_at = datetime('now')
   `).run(p.id, p.source, p.programId, p.title, p.agency, p.region, p.industry,
-         p.field, p.deadline, p.url, p.summary, p.rawText);
+         p.field, p.deadline, p.url, p.summary, p.rawText, p.department ?? null);
 }
 
 export function bulkUpsertPrograms(programs: Program[]): { inserted: number; skipped: number } {
   const db = getDb();
   const insert = db.prepare(`
-    INSERT INTO programs (id, source, program_id, title, agency, region, industry, field, deadline, url, summary, raw_text)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET cached_at = datetime('now')
+    INSERT INTO programs (id, source, program_id, title, agency, region, industry, field, deadline, url, summary, raw_text, department)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      department = excluded.department,
+      cached_at = datetime('now')
   `);
   let inserted = 0;
   let skipped = 0;
@@ -53,6 +57,7 @@ export function bulkUpsertPrograms(programs: Program[]): { inserted: number; ski
         p.agency ?? null, p.region ?? null, p.industry ?? null, p.field ?? null,
         p.deadline ?? null, p.url ?? null, p.summary ?? null,
         p.rawText ?? p.summary ?? p.title,
+        p.department ?? null,
       );
       inserted++;
     }
@@ -78,6 +83,7 @@ export function searchPrograms(f: SearchFilters): { total: number; programs: Pro
   if (f.industry) { where.push(`industry LIKE ?`); params.push(`%${f.industry}%`); }
   if (f.field) { where.push(`field = ?`); params.push(f.field); }
   if (f.deadlineBefore) { where.push(`deadline <= ?`); params.push(f.deadlineBefore); }
+  if (f.department) { where.push(`department = ?`); params.push(f.department); }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const total = (db.prepare(`SELECT COUNT(*) as c FROM programs ${whereSql}`).get(...params) as any).c;

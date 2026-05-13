@@ -6,7 +6,12 @@
   "model": "gemini-2.5-flash",
   "max_tokens": 3072,
   "temperature": 0.1,
-  "system_prompt_path": "prompts/doc-checklist.ko.md",
+  "system_prompt_path": {
+    "default": "prompts/doc-checklist.ko.md",
+    "planning": "prompts/doc-checklist.planning.ko.md",
+    "edu": "prompts/doc-checklist.edu.ko.md",
+    "oda": "prompts/doc-checklist.oda.ko.md"
+  },
   "tool_names": ["generateDocumentChecklist"],
   "depends_on": [],
   "output_schema": "ChecklistPost",

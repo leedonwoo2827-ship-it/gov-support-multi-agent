@@ -12,7 +12,15 @@ export type SupportField =
   | "경영"
   | "기타";
 
-export type ApiSource = "bizinfo" | "kstartup" | "smes24";
+export type ApiSource =
+  | "bizinfo"
+  | "kstartup"
+  | "smes24"
+  | "g2b-edu"
+  | "g2b-oda"
+  | "koica"
+  | "edcf"
+  | "kotra";
 
 export type TargetType =
   | "예비창업자"

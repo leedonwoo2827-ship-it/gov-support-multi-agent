@@ -6,7 +6,12 @@
   "model": "gemini-2.5-flash-lite",
   "max_tokens": 3072,
   "temperature": 0.1,
-  "system_prompt_path": "prompts/milestone.ko.md",
+  "system_prompt_path": {
+    "default": "prompts/milestone.ko.md",
+    "planning": "prompts/milestone.planning.ko.md",
+    "edu": "prompts/milestone.edu.ko.md",
+    "oda": "prompts/milestone.oda.ko.md"
+  },
   "tool_names": ["buildApplicationTimeline"],
   "depends_on": [],
   "output_schema": "SchedulePost",

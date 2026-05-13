@@ -6,7 +6,12 @@
   "model": "gemini-3-flash-preview",
   "max_tokens": 6144,
   "temperature": 0.4,
-  "system_prompt_path": "prompts/plan-draft.ko.md",
+  "system_prompt_path": {
+    "default": "prompts/plan-draft.ko.md",
+    "planning": "prompts/plan-draft.planning.ko.md",
+    "edu": "prompts/plan-draft.edu.ko.md",
+    "oda": "prompts/plan-draft.oda.ko.md"
+  },
   "tool_names": ["draftBusinessPlan"],
   "depends_on": [],
   "output_schema": "PlanDraftPost",

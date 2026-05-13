@@ -1,8 +1,15 @@
 import { z } from "zod";
 
 // ── 공통 ─────────────────────────────────────────────────────────────
-export const SourceEnum = z.enum(["bizinfo", "kstartup", "smes24", "datagokr", "fixture"]);
+export const SourceEnum = z.enum([
+  "bizinfo", "kstartup", "smes24", "datagokr", "fixture",
+  // 신규 — 입찰형 채널
+  "g2b-edu", "g2b-oda", "koica", "edcf", "kotra",
+]);
 export type Source = z.infer<typeof SourceEnum>;
+
+export const DepartmentEnum = z.enum(["planning", "edu", "oda"]);
+export type Department = z.infer<typeof DepartmentEnum>;
 
 export const StageEnum = z.enum(["예비", "초기", "도약", "중기"]);
 export const VerdictEnum = z.enum(["적합", "부분적합", "부적합"]);
@@ -23,10 +30,18 @@ export const ProgramSchema = z.object({
   url: z.string().nullable(),
   summary: z.string().nullable(),
   rawText: z.string(),
+  department: DepartmentEnum.nullable().optional(),
 });
 export type Program = z.infer<typeof ProgramSchema>;
 
 // ── 회사 프로파일 ───────────────────────────────────────────────────
+export const PastPerformanceItemSchema = z.object({
+  year: z.number().int(),
+  clientType: z.string(),
+  title: z.string(),
+  valueKrw: z.number().optional(),
+});
+
 export const CompanyProfileSchema = z.object({
   companyName: z.string(),
   bizRegNo: z.string().optional(),
@@ -40,6 +55,22 @@ export const CompanyProfileSchema = z.object({
   keywords: z.array(z.string()).default([]),
   certifications: z.array(z.string()).default([]),
   representativeAge: z.number().optional(),
+  // 부서 분기 (필수: 부서별 프로파일 분리)
+  department: DepartmentEnum.default("planning"),
+  // 공통 — 입찰 실적
+  pastPerformance: z.array(PastPerformanceItemSchema).default([]),
+  // 교육사업부 특화
+  instructorPool: z.object({
+    count: z.number().int(),
+    specialties: z.array(z.string()).default([]),
+  }).optional(),
+  contentIp: z.array(z.string()).default([]),
+  // 해외사업부 특화
+  languages: z.array(z.string()).default([]),
+  consortiumPartners: z.array(z.string()).default([]),
+  // 경영기획팀 특화 (지원금 신청용)
+  rdInvestmentKrw: z.number().optional(),
+  patentsCount: z.number().int().optional(),
 });
 export type CompanyProfile = z.infer<typeof CompanyProfileSchema>;
 
@@ -52,6 +83,8 @@ export const SearchFiltersSchema = z.object({
   deadlineBefore: z.string().optional(),       // ISO date
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(100).default(20),
+  department: DepartmentEnum.optional(),
+  sources: z.array(SourceEnum).optional(),
 });
 export type SearchFilters = z.infer<typeof SearchFiltersSchema>;
 
@@ -157,12 +190,19 @@ export const CaseSchema = z.object({
   bulkRunId: z.string().nullable(),
   status: z.enum(["open", "complete", "partial"]),
   createdAt: z.string(),
+  department: DepartmentEnum.optional(),
 });
 export type Case = z.infer<typeof CaseSchema>;
 
 // ── 에이전트 정의 (sonol-style) ─────────────────────────────────────
 export const ProviderEnum = z.enum(["anthropic", "gemini"]);
 export type Provider = z.infer<typeof ProviderEnum>;
+
+// system_prompt_path: 단일 문자열(레거시) 또는 부서별 분기 객체(`default` 필수).
+export const SystemPromptPathSchema = z.union([
+  z.string(),
+  z.record(z.string(), z.string()),
+]);
 
 export const AgentDefinitionSchema = z.object({
   agent_id: AgentIdEnum,
@@ -172,7 +212,7 @@ export const AgentDefinitionSchema = z.object({
   model: z.string(),
   max_tokens: z.number().int().default(4096),
   temperature: z.number().min(0).max(1).default(0.2),
-  system_prompt_path: z.string(),
+  system_prompt_path: SystemPromptPathSchema,
   tool_names: z.array(z.string()),
   depends_on: z.array(AgentIdEnum).default([]),
   output_schema: z.string(),                   // 스키마 이름 (e.g. "EligibilityPost")

@@ -10,7 +10,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import {
-  AGENT_PAYLOAD_SCHEMAS, type AgentId, type CompanyProfile, type Program,
+  AGENT_PAYLOAD_SCHEMAS, type AgentId, type CompanyProfile, type Program, type Department,
 } from "@gov/shared";
 import { getAgent } from "./loader.js";
 import { buildAnthropicTools, invokeTool } from "./toolBridge.js";
@@ -34,6 +34,7 @@ export interface RunAgentInput {
   agentId: AgentId;
   profile: CompanyProfile;
   program: Program;
+  department?: Department;
 }
 
 export interface RunAgentResult {
@@ -89,8 +90,9 @@ ${program.rawText}
 }
 
 export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
-  const { caseId, agentId, profile, program } = input;
-  const { def, systemPrompt } = getAgent(agentId);
+  const { caseId, agentId, profile, program, department } = input;
+  const dept = department ?? profile.department;
+  const { def, systemPrompt } = getAgent(agentId, dept);
 
   // ── Provider 분기 ─────────────────────────────────────────────────
   // mock 우선 (둘 다 키 없으면), 그 다음 def.provider 에 따라 분기

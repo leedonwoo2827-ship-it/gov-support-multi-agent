@@ -4,12 +4,13 @@ import type { SearchFilters } from "@gov/shared";
 
 interface Props {
   onSearch: (filters: Partial<SearchFilters>) => void;
+  placeholderKeyword?: string;
 }
 
 const FIELDS = ["창업", "금융", "기술", "인력", "수출", "내수", "경영", "기타"] as const;
 const REGIONS = ["전국", "수도권", "서울", "경기", "인천", "부산", "대구", "광주", "대전"];
 
-export default function SearchBar({ onSearch }: Props) {
+export default function SearchBar({ onSearch, placeholderKeyword }: Props) {
   const [keyword, setKeyword] = useState("");
   const [field, setField] = useState<string>("");
   const [region, setRegion] = useState<string>("");
@@ -34,7 +35,7 @@ export default function SearchBar({ onSearch }: Props) {
             value={keyword}
             onChange={e => setKeyword(e.target.value)}
             onKeyDown={e => e.key === "Enter" && submit()}
-            placeholder="예: 스마트팩토리, AI"
+            placeholder={placeholderKeyword ?? "예: 스마트팩토리, AI"}
             className="w-full border border-gov-line rounded px-2 py-1.5"
           />
         </div>

@@ -1,7 +1,7 @@
 // 클라이언트 ↔ orchestrator API 헬퍼
 
 import type {
-  Program, SearchFilters, Case, CompanyProfile,
+  Program, SearchFilters, Case, CompanyProfile, Department,
 } from "@gov/shared";
 
 export interface PostRow {
@@ -26,19 +26,20 @@ export async function searchPrograms(filters: Partial<SearchFilters>) {
   }>;
 }
 
-export async function runBulk(programIds: string[]) {
+export async function runBulk(programIds: string[], department?: Department) {
   const res = await fetch("/api/runs/bulk", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ programIds }),
+    body: JSON.stringify({ programIds, department }),
   });
   return res.json() as Promise<{
     bulkId: string; cases: Case[]; totalAgents: number;
   }>;
 }
 
-export async function getDemoProfile() {
-  const res = await fetch("/api/profiles/demo");
+export async function getDemoProfile(department?: Department) {
+  const qs = department ? `?department=${department}` : "";
+  const res = await fetch(`/api/profiles/demo${qs}`);
   return res.json() as Promise<{ id: string; profile: CompanyProfile }>;
 }
 
@@ -56,7 +57,8 @@ export async function listPosts(filter?: { agentId?: string }) {
   return res.json() as Promise<{ posts: PostRow[] }>;
 }
 
-export async function listAllCases() {
-  const res = await fetch("/api/cases");
+export async function listAllCases(department?: Department) {
+  const qs = department ? `?department=${department}` : "";
+  const res = await fetch(`/api/cases${qs}`);
   return res.json() as Promise<{ cases: Case[] }>;
 }

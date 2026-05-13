@@ -147,8 +147,19 @@ export default function SettingsPage() {
               건
             </label>
             <label className="text-sm flex items-center gap-2">
-              <input type="checkbox" checked={wipe} onChange={e => setWipe(e.target.checked)} />
-              가져오기 전 기존 데이터 초기화 (공고+분석기록 모두 삭제)
+              <input
+                type="checkbox"
+                checked={wipe}
+                onChange={e => {
+                  if (e.target.checked && !confirm("⚠️ 기존 fixture 30건 + 모든 분석 기록이 영구 삭제됩니다.\nKOICA/G2B 키가 활성화되지 않으면 edu/oda 부서가 빈 상태가 됩니다.\n\n정말 초기화할까요?")) {
+                    return;
+                  }
+                  setWipe(e.target.checked);
+                }}
+              />
+              <span className={wipe ? "text-red-700 font-semibold" : ""}>
+                🗑️ 가져오기 전 기존 데이터 초기화 (위험: fixture·분석기록 영구 삭제)
+              </span>
             </label>
           </div>
           <div className="flex gap-2">
@@ -156,7 +167,7 @@ export default function SettingsPage() {
               {busy ? "⏳ 가져오는 중..." : `🔄 실데이터 가져오기 (정부 API)`}
             </button>
             <button onClick={seedFixture} disabled={busy} className="gov-btn-sub">
-              ↩ 합성 fixture 20건으로 되돌리기
+              ↩ 합성 fixture 20건으로 되돌리기 (초기 개발자용)
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
@@ -170,9 +181,9 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {diagnostics && (diagnostics.count === 0 || diagnostics.warnings?.length > 0) && (
+        {diagnostics && (
           <div className="gov-card p-4 bg-blue-50 border-blue-200">
-            <h3 className="font-semibold text-blue-900 mb-2">🔍 진단 정보</h3>
+            <h3 className="font-semibold text-blue-900 mb-2">🔍 진단 정보 (모든 소스별 호출 결과)</h3>
 
             {diagnostics.sourceStats && (
               <div className="mb-3">
@@ -182,19 +193,56 @@ export default function SettingsPage() {
                     <tr>
                       <th className="text-left p-2">소스</th>
                       <th className="text-right p-2">받은 건수</th>
-                      <th className="text-left p-2">에러 / 비고</th>
+                      <th className="text-right p-2">HTTP</th>
+                      <th className="text-left p-2">에러 / 응답 본문</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Object.entries(diagnostics.sourceStats).map(([src, stat]: [string, any]) => (
-                      <tr key={src} className="border-b border-blue-100">
+                      <tr key={src} className="border-b border-blue-100 align-top">
                         <td className="p-2 font-medium">{src}</td>
                         <td className="p-2 text-right">{stat.fetched ?? 0}</td>
-                        <td className="p-2 text-red-700">{stat.error ?? "-"}</td>
+                        <td className="p-2 text-right text-gray-600">{stat.httpStatus ?? "-"}</td>
+                        <td className="p-2">
+                          {stat.error && <div className="text-red-700 font-medium">{stat.error}</div>}
+                          {stat.bodySnippet && (
+                            <pre className="mt-1 text-[10px] bg-white border border-blue-200 rounded p-2 whitespace-pre-wrap break-all max-h-40 overflow-auto">{stat.bodySnippet}</pre>
+                          )}
+                          {!stat.error && !stat.bodySnippet && "-"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {diagnostics.awardsStats && Object.keys(diagnostics.awardsStats).length > 0 && (
+              <div className="mb-3">
+                <p className="text-sm font-medium text-blue-900 mb-1">낙찰정보(g2b-scsbid) 부가 수집</p>
+                <table className="w-full text-xs">
+                  <thead className="bg-blue-100 border-b border-blue-200">
+                    <tr>
+                      <th className="text-left p-2">카테고리</th>
+                      <th className="text-right p-2">받은 건수</th>
+                      <th className="text-right p-2">DB 적재</th>
+                      <th className="text-left p-2">에러</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(diagnostics.awardsStats).map(([src, stat]: [string, any]) => (
+                      <tr key={src} className="border-b border-blue-100">
+                        <td className="p-2 font-medium">{src}</td>
+                        <td className="p-2 text-right">{stat.fetched ?? 0}</td>
+                        <td className="p-2 text-right">{stat.inserted ?? 0}</td>
+                        <td className="p-2 text-red-700 break-all">{stat.error ?? "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {diagnostics.awardsTotalAfter !== undefined && (
+                  <p className="text-xs text-blue-700 mt-1">현재 bid_awards 누적: {diagnostics.awardsTotalAfter}건</p>
+                )}
               </div>
             )}
 

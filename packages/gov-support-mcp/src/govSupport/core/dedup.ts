@@ -23,6 +23,7 @@ export interface NormalizedAnnouncement {
   status?: string;
   rawItem: Record<string, unknown>;
   dedupMeta?: DedupMeta;
+  department?: "planning" | "edu" | "oda";
 }
 
 export interface DeduplicatedGroup {
@@ -164,14 +165,32 @@ function detectDuplicate(
 
 // ─── 소스별 정규화 헬퍼 ───────────────────────────────────────────────────────
 
+/**
+ * bizinfo 신청기간 범위 파싱
+ * 입력 예: "2026-04-10 ~ 2026-04-30", "2026.05.06 ~ 2026.05.29", "20260410~20260430"
+ * 폴백: 단일 날짜 한 개만 있으면 deadline 으로 간주
+ */
+function splitBizinfoRange(raw: string | undefined): { start?: string; end?: string } {
+  if (!raw) return {};
+  const s = String(raw).trim();
+  if (!s) return {};
+  const dates = s.match(/\d{4}[-/.]?\d{2}[-/.]?\d{2}/g);
+  if (!dates || dates.length === 0) return {};
+  if (dates.length === 1) return { end: dates[0] };
+  return { start: dates[0], end: dates[dates.length - 1] };
+}
+
 export function normalizeBizinfo(item: Record<string, string>): NormalizedAnnouncement {
+  // 실제 API 응답은 신청기간을 단일 필드 reqstBeginEndDe 로 반환 ("YYYY-MM-DD ~ YYYY-MM-DD")
+  // 과거 코드가 존재하지 않는 reqstBeginDe / reqstEndDe 를 읽어 deadline 이 항상 null 이었던 버그 수정
+  const range = splitBizinfoRange(item["reqstBeginEndDe"]);
   return {
     announcementId: `bizinfo:${item["pblancId"] ?? ""}`,
     title: item["pblancNm"] ?? "",
     source: "bizinfo",
     agency: item["jrsdInsttNm"] ?? "",
-    startDate: item["reqstBeginDe"],
-    deadline: item["reqstEndDe"],
+    startDate: range.start ?? item["reqstBeginDe"],
+    deadline: range.end ?? item["reqstEndDe"],
     field: item["pldirSportRealmLclasCodeNm"],
     detailUrl: item["pblancUrl"],
     rawItem: item as Record<string, unknown>,
@@ -204,5 +223,43 @@ export function normalizeSmes24(item: Record<string, string>): NormalizedAnnounc
     region: item["areaNm"],
     detailUrl: item["pblancDtlUrl"],
     rawItem: item as Record<string, unknown>,
+  };
+}
+
+// ─── 신규: 부서별 입찰 채널 normalize ─────────────────────────────────────
+
+export function normalizeG2bBid(
+  item: Record<string, unknown>,
+  category: "edu" | "oda",
+): NormalizedAnnouncement {
+  const id = String(item["bidNtceNo"] ?? "") + (item["bidNtceOrd"] ? `-${item["bidNtceOrd"]}` : "");
+  return {
+    announcementId: `${category === "edu" ? "g2b-edu" : "g2b-oda"}:${id}`,
+    title: String(item["bidNtceNm"] ?? ""),
+    source: category === "edu" ? "g2b-edu" : "g2b-oda",
+    agency: String(item["ntceInsttNm"] ?? item["dminsttNm"] ?? ""),
+    startDate: item["bidNtceDt"] as string | undefined,
+    deadline: item["bidClseDt"] as string | undefined,
+    field: item["bsnsDivNm"] as string | undefined,
+    detailUrl: item["bidNtceDtlUrl"] as string | undefined,
+    rawItem: item,
+    department: category === "edu" ? "edu" : "oda",
+  };
+}
+
+export function normalizeKoica(item: Record<string, unknown>): NormalizedAnnouncement {
+  // KOICA 응답 필드명은 UPPER_SNAKE_CASE (BID_NM, PBLANC_NO 등)
+  const pblancNo = String(item["PBLANC_NO"] ?? "");
+  const pblancOdr = String(item["PBLANC_ODR"] ?? "");
+  return {
+    announcementId: `koica:${pblancNo}${pblancOdr ? `-${pblancOdr}` : ""}`,
+    title: String(item["BID_NM"] ?? ""),
+    source: "koica",
+    agency: "KOICA",
+    field: item["PRCURE_BSNS_SE_CD_NM"] as string | undefined,
+    detailUrl: item["BID_POP_OUT_URL"] as string | undefined,
+    status: item["BID_PROGRS_STTUS_NM"] as string | undefined,
+    rawItem: item,
+    department: "oda",
   };
 }

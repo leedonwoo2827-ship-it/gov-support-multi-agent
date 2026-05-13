@@ -1,13 +1,25 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { CompanyProfileSchema } from "@gov/shared";
+import { CompanyProfileSchema, DepartmentEnum, type Department } from "@gov/shared";
 import { saveProfile, getProfile, listProfiles, getOrCreateDemoProfile } from "../board/profiles.js";
 
 const router = new Hono();
 
-router.get("/", (c) => c.json({ profiles: listProfiles() }));
+function parseDept(raw: string | undefined): Department | undefined {
+  if (!raw) return undefined;
+  const parsed = DepartmentEnum.safeParse(raw);
+  return parsed.success ? parsed.data : undefined;
+}
 
-router.get("/demo", (c) => c.json(getOrCreateDemoProfile()));
+router.get("/", (c) => {
+  const dept = parseDept(c.req.query("department"));
+  return c.json({ profiles: listProfiles(dept) });
+});
+
+router.get("/demo", (c) => {
+  const dept = parseDept(c.req.query("department")) ?? "planning";
+  return c.json(getOrCreateDemoProfile(dept));
+});
 
 router.get("/:id", (c) => {
   const p = getProfile(c.req.param("id"));
