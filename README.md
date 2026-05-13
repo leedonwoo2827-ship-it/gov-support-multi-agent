@@ -1,108 +1,113 @@
 # gov-support-multi-agent
 
-정부지원사업 **검색 → 다중 선택 → 4개 전문가 에이전트 병렬 분석** 대시보드 PoC.
+**3개 부서별 맞춤 + 4개 전문가 에이전트 병렬 분석** 정부지원사업·입찰 대시보드.
 
-기존 [dify-gov-support-poc](https://github.com/leedonwoo2827-ship-it/dify-gov-support-poc) 의
-단일 Dify chatflow 구조를 4-에이전트 게시판 형태로 재구축했습니다.
-참고 아키텍처: [sonol-multi-agent](https://github.com/volition79/sonol-multi-agent).
+| 부서 | 주력 채널 | 비즈니스 모델 |
+|---|---|---|
+| 📊 **경영기획팀** | BIZINFO · K-Startup · SMES24 | R&D · 창업 · 중소기업 지원금 신청 |
+| 📚 **교육사업부** | 나라장터 G2B 교육·훈련용역 | 금융·공공기관 위탁 교육 입찰 수주 |
+| 🌏 **해외사업부** | KOICA ODA · EDCF · KOTRA | 개도국 국제개발 사업 입찰 수주 |
+
+부서마다 데이터 소스 · 회사 프로파일 · 4개 에이전트의 시스템 프롬프트 · mock 응답이 **자동 분기**됩니다. 출력 스키마와 UI 4-카드 그리드는 공통이라 PM이 부서를 바꿔도 학습 비용 0.
+
+기존 [dify-gov-support-poc](https://github.com/leedonwoo2827-ship-it/dify-gov-support-poc) 의 단일 Dify chatflow 구조를 4-에이전트 게시판으로 재구축. 참고: [sonol-multi-agent](https://github.com/volition79/sonol-multi-agent).
 
 ## 4개 에이전트
 
-| 에이전트 | 입력 | 출력 (Zod 검증) | 기본 모델 |
-|---|---|---|---|
-| ✅ **자격평가** | 회사 프로파일 + 공고 | 적합/부분/부적합 + 5축 점수 + 충족/미충족 요건 | Sonnet 4.6 |
-| 📝 **사업계획서 초안** | 동일 | PSST 4섹션 한국어 초안 + 3줄 요약 | Sonnet 4.6 |
-| 📂 **서류 체크리스트** | 동일 | 필수/선택/권장 서류 + 보유 상태 | Haiku 4.5 |
-| 📅 **마일스톤 일정표** | 동일 | 마감 역산 D-30 ~ D-1 단계별 일정 | Haiku 4.5 |
+각 에이전트 출력은 Zod 검증. 부서별로 시스템 프롬프트가 갈라져 결과의 톤·5축 라벨이 다릅니다.
 
-## 빠른 시작 (Windows — .bat 한 번씩)
+| 에이전트 | 경영기획팀 | 교육사업부 | 해외사업부 | 기본 모델 |
+|---|---|---|---|---|
+| ✅ **자격평가** | 기업규모 · R&D · 인증 · 재무 · 영역 | 실적 · 강사풀 · 콘텐츠IP · LMS · **가격경쟁력**¹ | 국제실적 · 컨소시엄 · 다국어 · 전문성 · PQ | Gemini 2.5 Flash-Lite |
+| 📝 **사업계획서 초안** | PSST 4섹션 (지원금 양식) | RFP 응답 (교수설계·평가) | 기술제안서 (DAC 5원칙) | Gemini 2.5 Flash-Lite |
+| 📂 **서류 체크리스트** | 사업자등록·완납·재무 | G2B 입찰자격·실적·강사CV | KOICA 등록·컨소시엄·영문CV | Gemini 2.5 Flash |
+| 📅 **마일스톤 일정표** | D-30~D-0 단일 단계 | RFP→제안서→평가→계약 | **PQ→본입찰 2단계** | Gemini 2.5 Flash-Lite |
 
-```cmd
-REM 1) 설치 + 시드 (한 번만)
-install.bat
+¹ 가격경쟁력 axis는 [나라장터 낙찰정보](https://www.data.go.kr/data/15129397/openapi.do) 통계 기반 — 발주처별 평균 낙찰률·낙찰업체·평균 참가업체수를 자격평가 코멘트에 자동 주입.
 
-REM 2) 두 서버 실행 (별도 창에서) + 브라우저 자동 오픈
-dev.bat
+## 빠른 시작 (2개 터미널)
 
-REM (필요 시) DB 재시드 — 합성 fixture 20건
-seed.bat
-
-REM (필요 시) 실데이터 시드 — K-Startup 100건 (PUBLIC_DATA_SERVICE_KEY 필요)
-seed-real.bat
-
-REM (필요 시) 서버 종료
-stop.bat
-
-REM (필요 시) 전체 클린
-clean.bat
-```
-
-## 빠른 시작 (Mac / Linux — .sh 한 번씩)
+cmd/PowerShell/bash 모두 동일하게 동작. **`pnpm dev` 한 줄은 cmd의 작은따옴표 처리 이슈로 권장하지 않음** (PowerShell·bash에서는 가능).
 
 ```bash
-# 1) 설치 + 시드 (한 번만)
-./install.sh
-
-# 2) 두 서버 실행 + 브라우저 자동 오픈
-./dev.sh
-
-# (선택) 실데이터로 교체 — K-Startup 100건 (PUBLIC_DATA_SERVICE_KEY 필요)
-./seed-real.sh
-
-# (필요 시) DB 재시드(fixture) / 종료 / 클린
-./seed.sh
-./stop.sh
-./clean.sh
+# 터미널 1
+pnpm dev:orchestrator
+# 터미널 2
+pnpm dev:web
 ```
 
-## 빠른 시작 (수동)
+기동 후 http://localhost:3000 접속.
+
+## 빠른 설치 (한 번만)
 
 ```bash
+# 1) 의존성 설치
 pnpm install
+
+# 2) 부서별 회사 프로파일 시드 (3개 부서: planning/edu/oda)
 pnpm --filter @gov/orchestrator run seed
-pnpm dev   # orchestrator + web 병렬
-open http://localhost:3000   # macOS
-xdg-open http://localhost:3000   # Linux
 ```
 
-API 키 없이도 mock 모드로 시연됩니다. 실제 LLM/공고 데이터를 쓰려면:
+> 공고 데이터는 시드하지 않습니다. PoC는 **실데이터 100%**로 운영. 부서 탭이 일시적으로 비는 상황(예: 키 활성화 대기)은 감수.
 
-```bash
-# .env 편집
-notepad .env   # Windows
-nano .env      # Mac/Linux
+### API 키 발급 (필요한 것만, 모두 같은 1개 키로 가능)
 
-# 다음 키 중 필요한 것만 입력
-ANTHROPIC_API_KEY=sk-ant-...        # 에이전트 실 호출
-PUBLIC_DATA_SERVICE_KEY=...         # data.go.kr K-Startup 등 실데이터 (인증키 Encoding)
-BIZINFO_API_KEY=...                 # bizinfo.go.kr (별도 발급)
-SMES24_API_KEY=...                  # smes.go.kr (별도 발급)
-```
+| 키 | 발급처 | 커버 |
+|---|---|---|
+| `PUBLIC_DATA_SERVICE_KEY` ⭐ | [data.go.kr](https://www.data.go.kr) 마이페이지 → 활용신청 | K-Startup · KOICA ODA · G2B 입찰공고 · G2B 낙찰정보 (모두 1개 키) |
+| `BIZINFO_API_KEY` | [bizinfo.go.kr](https://www.bizinfo.go.kr) (별도 발급) | 기업마당 BIZINFO |
+| `SMES24_API_KEY` | [smes.go.kr](https://www.smes.go.kr) (선택) | 중소벤처24 |
+| `GEMINI_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | 4개 에이전트 실 호출 (무료 티어 가능) |
+| `ANTHROPIC_API_KEY` | (대안) | Gemini 대신 Claude 사용 시 |
 
-### 실데이터 적용 — 대시보드에서 (권장)
+활용신청 권장 데이터셋 (data.go.kr):
+- [15125364](https://www.data.go.kr/data/15125364/openapi.do) 창업진흥원_K-Startup
+- [3039908](https://www.data.go.kr/data/3039908/openapi.do) 한국국제협력단_KOICA ODA 조달 정보
+- [15129394](https://www.data.go.kr/data/15129394/openapi.do) 조달청_나라장터 입찰공고정보서비스
+- [15129397](https://www.data.go.kr/data/15129397/openapi.do) 조달청_나라장터 낙찰정보서비스 (경쟁사·낙찰률 분석용)
+
+신청 후 활성화에 1~24시간 소요될 수 있습니다 (`SERVICE KEY IS NOT REGISTERED` 응답 시 시간 대기).
+
+### 키 입력 → 데이터 적재
 
 1. http://localhost:3000 → 우상단 **[⚙️ 설정]** 클릭
-2. 4개 키 입력 + [💾 저장]
-3. 상단 [📥 실데이터 적재] 섹션에서 받을 건수 선택 → [🔄 실데이터 가져오기]
-4. 하단 [📜 데이터 적재 이력] 에서 누가/언제/몇 건 가져왔는지 추적
-
-키는 SQLite 의 `settings` 테이블에 저장되며, 환경변수보다 우선합니다.
-
-부서별 운영·키 발급 가이드는 [`_docs/USER_MANUAL.md`](_docs/USER_MANUAL.md) 참고.
-
-### 실데이터 적용 — CLI (대안)
-
-`.env` 에 `PUBLIC_DATA_SERVICE_KEY=...` 추가 후 `seed-real.bat` (Windows) 또는 `./seed-real.sh` (Mac/Linux) 실행.
+2. 위 키들 입력 후 [💾 저장] (SQLite `settings` 테이블 평문 저장, 환경변수보다 우선)
+3. **[📥 실데이터 적재]** 섹션의 [🔄 실데이터 가져오기 (정부 API)] 클릭
+4. ☑️ "기존 데이터 초기화" 체크박스는 **OFF 권장** (누적 모드). 실수 클릭 방지를 위해 켜면 빨간 확인 팝업이 뜸.
+5. 진단 박스에서 소스별 받은 건수 + HTTP + 응답 본문 200자 확인 가능
+6. 하단 [📜 데이터 적재 이력] 에서 부서·날짜별 운영 점검 가능
 
 ## 시연 시나리오
 
-1. http://localhost:3000 접속 → 좌측 검색에 "스마트팩토리" 입력 → 결과 1건
-2. 검색을 비워서 다시 검색 → 결과 20건
-3. 상위 2건 체크박스 선택 → [🚀 전략 분석] 클릭
-4. 하단 게시판에 8개 카드(2공고 × 4에이전트) 가 "실행 중" → "완료" 로 채워짐
-5. 카드 [▼ 상세보기] 클릭하면 한국어 마크다운 본문 (자격평가 점수표, PSST 4섹션, 서류 표, 일정 표)
-6. 우상단 [📦 DB 다운로드] 로 `gov.db` SQLite 파일을 받아서 sqlite3 로 직접 열기 가능
-7. [📊 공고 CSV] / [📝 게시글 CSV] 로 표 데이터 다운로드
+부서 탭 클릭 → 공고 선택 → [🚀 전략 분석] → 4-카드 결과 → [▼ 상세보기].
+
+**시나리오 1 — 경영기획팀** (3분)
+> "이번 주 BIZINFO에 새로 올라온 R&D 지원사업 중 우리가 신청할 만한 거 있나?"
+1. 경영기획팀 탭 → 마감 임박순 공고 1건 체크 → [🚀 전략 분석]
+2. 자격평가 5축(기업규모·R&D·인증·재무·영역) + 사업계획서 PSST 4섹션 + 마일스톤 D-30~D-0
+
+**시나리오 2 — 교육사업부** (5분) ⭐ A1 통합 가치 입증
+> "지금 나라장터에 올라온 교육 위탁용역 + 가격을 얼마로 써야 할지"
+1. 교육사업부 탭 → 키워드 "AI" / "금융" 검색 → 실 G2B 공고
+2. [🚀 전략 분석] → 자격평가의 **가격경쟁력 axis** 에 "OOO기관 최근 6개월 평균 낙찰률 87.3% (12건, 평균 참가 4.2개사). 주요 낙찰업체: …" 같은 객관 통계 자동 노출
+3. 사업계획서는 RFP 응답형, 마일스톤은 RFP→제안서→평가→계약 8단계
+
+**시나리오 3 — 해외사업부** (5분)
+> "KOICA 발주 베트남 ODA 사업, 우리 컨소시엄으로 PQ 통과 가능한가?"
+1. 해외사업부 탭 → KOICA 입찰공고 1건 선택
+2. 자격평가 axes: 국제개발 실적 · 컨소시엄 · 다국어 · ODA 전문성 · **PQ 통과 가능성**
+3. 마일스톤이 **PQ 마감 → 본입찰 마감 2단계 (10단계, 약 41일)**
+4. 서류 체크리스트에 컨소시엄 협약서 · 현지 MOU · 영문 CV 항목
+
+## 데이터 내보내기
+
+- 우상단 [📦 DB 다운로드] — `gov.db` SQLite 파일 그대로 다운로드
+- [📊 공고 CSV] · [📝 게시글 CSV] — 표 데이터
+- 케이스별 통합 Markdown 보고서: `/api/export/cases/:id/md`
+
+## (구) 단축 스크립트
+
+`install.bat` · `dev.bat` · `seed.bat` 등 윈도우 배치 파일이 남아있지만, 위 2-터미널 방식이 더 안정적입니다 (cmd 따옴표 이슈 회피).
 
 ## 아키텍처
 
