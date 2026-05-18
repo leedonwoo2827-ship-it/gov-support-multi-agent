@@ -2,6 +2,24 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+/**
+ * 무거운 적재 엔드포인트는 Next.js dev 의 rewrite 프록시가 ~30s 에 socket hang up 으로 끊어버려서,
+ * 브라우저가 orchestrator(:8787) 에 직접 호출하도록 우회한다. CORS 는 server.ts 에서 * 로 열려있음.
+ *
+ * 우선순위:
+ *   1) NEXT_PUBLIC_ORCHESTRATOR_URL (배포·VPS 환경에서 명시)
+ *   2) 동일 호스트의 8787 포트 (LAN/localhost 공통 대응)
+ *   3) SSR 시에는 상대경로 (어차피 SSR 에서 이 함수 안 부름)
+ */
+function orchestratorDirect(path: string): string {
+  const env = (process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || "").replace(/\/$/, "");
+  if (env) return `${env}${path}`;
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:8787${path}`;
+  }
+  return path;
+}
+
 interface SettingMeta {
   key: string;
   label: string;
@@ -76,7 +94,8 @@ export default function SettingsPage() {
     setMessage(null);
     setDiagnostics(null);
     try {
-      const res = await fetch("/api/admin/seed-real", {
+      // Next.js rewrite 프록시 우회 — 적재 시간이 30초 넘으면 socket hang up 으로 끊김
+      const res = await fetch(orchestratorDirect("/api/admin/seed-real"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ maxPerSource, wipe }),
@@ -108,7 +127,7 @@ export default function SettingsPage() {
   async function seedFixture() {
     if (!confirm("실데이터를 지우고 합성 fixture 20건으로 되돌릴까요?")) return;
     setBusy(true);
-    const res = await fetch("/api/admin/seed-fixture", { method: "POST" }).then(r => r.json());
+    const res = await fetch(orchestratorDirect("/api/admin/seed-fixture"), { method: "POST" }).then(r => r.json());
     setMessage({ kind: "ok", text: `✅ fixture ${res.count}건 적재됨 (현재 DB 총 ${res.countTotalAfter}건)` });
     await loadHistory();
     setBusy(false);
