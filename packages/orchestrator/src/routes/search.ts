@@ -80,7 +80,18 @@ router.post("/", zValidator("json", SearchFiltersSchema), async (c) => {
             field: a.field ?? null,
             deadline: normalizeDate(a.deadline),
             url: a.detailUrl ?? null,
-            summary: raw?.pblancNm || raw?.biz_pbanc_nm || raw?.bidNtceNm || raw?.bsnsNm || null,
+            summary: a.source === "koica"
+              ? JSON.stringify({
+                  status: raw?.BID_PROGRS_STTUS_NM ?? null,
+                  cntrct: raw?.CNTRCT_MTH_NM ?? null,
+                  scsbid: raw?.SCSBID_MTH_NM ?? null,
+                  limit: raw?.BID_LMT_AMOUNT ?? null,
+                  bsnsSe: raw?.PRCURE_BSNS_SE_CD_NM ?? null,
+                  detailSe: raw?.PRCURE_DETAIL_SE_NM ?? null,
+                  pblancNo: raw?.PBLANC_NO ?? null,
+                  pblancOdr: raw?.PBLANC_ODR ?? null,
+                })
+              : (raw?.pblancNm || raw?.biz_pbanc_nm || raw?.bidNtceNm || raw?.bsnsNm || null),
             rawText: [raw?.pblancCn, raw?.pbanc_ctnt, raw?.bidNtceNm, raw?.bsnsNm, a.title, a.agency, a.field, a.region]
               .filter(Boolean).join("\n\n").slice(0, 5000) || a.title,
             department: a.department ?? inferDepartmentFromSource(a.source),

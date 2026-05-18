@@ -20,6 +20,8 @@ import { appendEvent } from "../board/events.js";
 import { estimateCostKrw } from "../lib/cost.js";
 import { isMockMode, mockPayload } from "./mock.js";
 import { getAnthropicKey } from "../board/settings.js";
+import { getAwardStatsByAgency } from "../board/awards.js";
+import { getKoicaContractStats, getKoicaContractGlobalStats } from "../board/koicaContracts.js";
 
 const MAX_TURNS = 8;
 
@@ -62,7 +64,88 @@ function buildEmitTool(agentId: AgentId): { name: string; description: string; i
   };
 }
 
-function renderUserMessage(profile: CompanyProfile, program: Program): string {
+/**
+ * 가격경쟁력 축 입력용 시장 컨텍스트 — eligibility / plan-draft 에이전트에 주입.
+ *
+ * - edu: 발주처별 G2B 낙찰 통계 (낙찰률·낙찰업체).
+ * - oda: KOICA 수의계약 통계 (분야 매칭 키워드별 평균 계약금액·주요 파트너).
+ *
+ * 데이터 미수집 시에도 그 사실을 명시적으로 알려 LLM 이 "데이터 미상 — 보류" 로 처리하게 함.
+ */
+function renderMarketContext(agentId: AgentId, profile: CompanyProfile, program: Program, dept?: Department): string | null {
+  if (agentId !== "eligibility" && agentId !== "plan-draft") return null;
+  if (dept === "edu" && program.agency) {
+    try {
+      const agencyKey = program.agency.slice(0, Math.min(program.agency.length, 4));
+      const s = getAwardStatsByAgency(agencyKey, "edu");
+      if (!s || s.avgRate === null) {
+        return `## 시장 컨텍스트 — 가격경쟁력 축\n- 발주처 "${program.agency}" 의 G2B 낙찰 통계 미수집 (실데이터 적재 전).\n- 점수는 보류 또는 시장 평균 가정으로 산출하고, 그 사실을 reasoning 에 명시할 것.`;
+      }
+      const winners = s.topWinners.slice(0, 3).map(w => `${w.name}(${w.count}건)`).join(", ") || "—";
+      return `## 시장 컨텍스트 — 가격경쟁력 축
+발주처 "${program.agency}" 최근 G2B 낙찰 통계 (LIKE "${agencyKey}", category=edu):
+- 표본: ${s.count}건
+- 평균 낙찰률: ${s.avgRate.toFixed(1)}% (min ${s.minRate?.toFixed(1) ?? "?"} / max ${s.maxRate?.toFixed(1) ?? "?"})
+- 평균 참가업체수: ${s.avgParticipants?.toFixed(1) ?? "?"} 개사
+- 평균 낙찰금액: ${s.avgAmt ? `${(s.avgAmt / 1e8).toFixed(2)}억` : "?"}
+- 주요 낙찰업체: ${winners}
+
+해석 지침: 낙찰률 90%↑ = 가격 경쟁 약함(가점 가능), 80%↓ = 가격 경쟁 치열(감점). 주요 낙찰업체에 회사명이 있으면 가점.`;
+    } catch {
+      return null;
+    }
+  }
+  if (dept === "oda") {
+    // 분야/사업명 키워드로 KOICA 수의계약 통계 매칭
+    const candidates: string[] = [];
+    if (program.field) candidates.push(program.field);
+    if (program.title) {
+      const firstWords = program.title.split(/\s+/).filter(w => w.length >= 2).slice(0, 2);
+      candidates.push(...firstWords);
+    }
+    let matched: ReturnType<typeof getKoicaContractStats> = null;
+    for (const kw of candidates) {
+      try {
+        const s = getKoicaContractStats(kw);
+        if (s && s.count > 0) { matched = s; break; }
+      } catch { /* ignore */ }
+    }
+    if (!matched) {
+      try {
+        const g = getKoicaContractGlobalStats();
+        if (g.count === 0) {
+          return `## 시장 컨텍스트 — ODA 가격경쟁력 축\n- KOICA 수의계약 데이터 미수집 (실데이터 적재 전).\n- 점수는 보류 또는 시장 평균 가정으로 산출하고, 그 사실을 reasoning 에 명시할 것.`;
+        }
+        const winners = g.topContractors.slice(0, 3).map(w => `${w.name}(${w.count}건)`).join(", ") || "—";
+        return `## 시장 컨텍스트 — ODA 가격경쟁력 축
+- 분야 "${program.field ?? program.title}" 와 매칭되는 KOICA 수의계약 사례 부재.
+- 일반/제한경쟁 트랙 검토 권고.
+- KOICA 전체 수의 ${g.count}건 평균 ${g.avgAmt ? `${(g.avgAmt / 1e8).toFixed(2)}억` : "?"} / 주요 파트너: ${winners}`;
+      } catch {
+        return null;
+      }
+    }
+    const winners = matched.topContractors.slice(0, 5).map(w => `${w.name}(${w.count}건)`).join(", ") || "—";
+    const samples = matched.recentSamples.slice(0, 3)
+      .map(r => `  - ${r.date ?? "-"} · ${r.name ?? "?"} · ${r.amount ? `${(r.amount / 1e8).toFixed(2)}억` : "?"} · ${r.nm ?? ""}`)
+      .join("\n");
+    const topShare = matched.topContractors.length > 0 ? matched.topContractors[0].count / matched.count : 0;
+    return `## 시장 컨텍스트 — ODA 가격경쟁력 축
+KOICA 수의계약 통계 (매칭 키워드 "${matched.keyword}"):
+- 표본: ${matched.count}건
+- 평균 계약금액: ${matched.avgAmt ? `${(matched.avgAmt / 1e8).toFixed(2)}억` : "?"} (min ${matched.minAmt ? `${(matched.minAmt / 1e8).toFixed(2)}억` : "?"} / max ${matched.maxAmt ? `${(matched.maxAmt / 1e8).toFixed(2)}억` : "?"})
+- 주요 수의 파트너 (Top 5): ${winners}
+- 상위 파트너 집중도: ${(topShare * 100).toFixed(0)}%
+- 최근 사례:
+${samples}
+
+해석 지침: 분야 매칭 표본이 많고 파트너가 다양(집중도 < 50%) → 진입 가능성 ↑. 표본이 적거나(<2) 1개 파트너 독점 → 일반/제한경쟁 트랙으로 우회 권고. 주요 파트너에 회사명("${profile.companyName}")이 있으면 기존 수의 이력 가점.`;
+  }
+  return null;
+}
+
+function renderUserMessage(profile: CompanyProfile, program: Program, agentId: AgentId, dept?: Department): string {
+  const market = renderMarketContext(agentId, profile, program, dept);
   return `## 회사 프로파일
 - 회사명: ${profile.companyName}
 - 업종: ${profile.industry} (${profile.industryCode ?? "코드 미상"})
@@ -85,7 +168,7 @@ ${profile.bizRegNo ? `- 사업자번호: ${profile.bizRegNo}` : ""}
 
 ### 공고 본문
 ${program.rawText}
-
+${market ? `\n${market}\n` : ""}
 위 정보를 기반으로 작업을 수행하고, 마지막에 emit_result 도구로 최종 결과를 반환하세요.`;
 }
 
@@ -104,13 +187,13 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     const { runGeminiAgent } = await import("./runner-gemini.js");
     return runGeminiAgent({
       caseId, agentId, def, systemPrompt, profile, program,
-      userMessage: renderUserMessage(profile, program),
+      userMessage: renderUserMessage(profile, program, agentId, dept),
       buildBody,
     });
   }
 
   // 기본: Anthropic
-  return runAnthropicAgent(input, def, systemPrompt);
+  return runAnthropicAgent(input, def, systemPrompt, dept);
 }
 
 async function runMockAgent(input: RunAgentInput, def: any, _systemPrompt: string): Promise<RunAgentResult> {
@@ -136,7 +219,7 @@ async function runMockAgent(input: RunAgentInput, def: any, _systemPrompt: strin
   }
 }
 
-async function runAnthropicAgent(input: RunAgentInput, def: any, systemPrompt: string): Promise<RunAgentResult> {
+async function runAnthropicAgent(input: RunAgentInput, def: any, systemPrompt: string, dept?: Department): Promise<RunAgentResult> {
   const { caseId, agentId, profile, program } = input;
   const run = createRun(caseId, agentId, def.model);
   appendEvent({ caseId, runId: run.id, agentId, kind: "progress", payload: { stage: "started", model: def.model, provider: "anthropic" } });
@@ -147,7 +230,7 @@ async function runAnthropicAgent(input: RunAgentInput, def: any, systemPrompt: s
   const allTools = [...mcpTools, emitTool];
 
   const messages: Anthropic.MessageParam[] = [
-    { role: "user", content: renderUserMessage(profile, program) },
+    { role: "user", content: renderUserMessage(profile, program, agentId, dept) },
   ];
 
   let totalIn = 0;

@@ -247,6 +247,29 @@ export function normalizeG2bBid(
   };
 }
 
+// KOICA 전자조달(NEBID) 포털 — API 응답의 BID_POP_OUT_URL 은
+// "/oep/prcm/popup/bidWrtancDetail.do" 같은 호스트 없는 상대경로만 오므로
+// 정식 호스트와 공고번호 쿼리를 붙여서 클릭 가능한 URL 로 만든다.
+// (오타 주의: oep.koica.go.kr 는 존재하지 않음. nebid.koica.go.kr 이 실제 호스트)
+const KOICA_OEP_HOST = "https://nebid.koica.go.kr";
+
+function buildKoicaDetailUrl(item: Record<string, unknown>): string | undefined {
+  const raw = item["BID_POP_OUT_URL"];
+  const pblancNo = item["PBLANC_NO"];
+  const pblancOdr = item["PBLANC_ODR"];
+  if (!raw || !pblancNo) return undefined;
+  const path = String(raw);
+  // 이미 절대 URL 이면 그대로
+  if (/^https?:\/\//i.test(path)) return path;
+  const base = path.startsWith("/") ? `${KOICA_OEP_HOST}${path}` : `${KOICA_OEP_HOST}/${path}`;
+  const params = new URLSearchParams();
+  params.set("pblancNo", String(pblancNo));
+  if (pblancOdr !== undefined && pblancOdr !== null && String(pblancOdr) !== "") {
+    params.set("pblancOdr", String(pblancOdr));
+  }
+  return `${base}?${params.toString()}`;
+}
+
 export function normalizeKoica(item: Record<string, unknown>): NormalizedAnnouncement {
   // KOICA 응답 필드명은 UPPER_SNAKE_CASE (BID_NM, PBLANC_NO 등)
   const pblancNo = String(item["PBLANC_NO"] ?? "");
@@ -257,7 +280,7 @@ export function normalizeKoica(item: Record<string, unknown>): NormalizedAnnounc
     source: "koica",
     agency: "KOICA",
     field: item["PRCURE_BSNS_SE_CD_NM"] as string | undefined,
-    detailUrl: item["BID_POP_OUT_URL"] as string | undefined,
+    detailUrl: buildKoicaDetailUrl(item),
     status: item["BID_PROGRS_STTUS_NM"] as string | undefined,
     rawItem: item,
     department: "oda",

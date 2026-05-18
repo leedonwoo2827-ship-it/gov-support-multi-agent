@@ -141,3 +141,24 @@ CREATE INDEX IF NOT EXISTS idx_awards_dminstt ON bid_awards(dminstt_nm);
 CREATE INDEX IF NOT EXISTS idx_awards_date ON bid_awards(fnl_sucsf_date);
 CREATE INDEX IF NOT EXISTS idx_awards_category ON bid_awards(category);
 CREATE INDEX IF NOT EXISTS idx_awards_bid_ntce_no ON bid_awards(bid_ntce_no);
+
+-- KOICA 수의계약 (PrcureService/getVltrnCntrctList) — ODA 가격경쟁력 axis 컨텍스트 입력용
+-- 경쟁입찰이 아니므로 낙찰률·참가업체수 개념이 없고, 계약상대업체·계약금액·분야가 핵심 지표.
+CREATE TABLE IF NOT EXISTS koica_contracts (
+  id TEXT PRIMARY KEY,                    -- pblanc_no + cntrct_date (또는 raw 해시 폴백)
+  pblanc_no TEXT,                          -- 공고/계약번호
+  cntrct_nm TEXT,                          -- 사업/계약명 (BID_NM 또는 CNTRCT_NM)
+  cntrctor_nm TEXT,                        -- 계약상대업체명
+  cntrct_amount REAL,                      -- 계약금액
+  cntrct_date TEXT,                        -- 계약일자 (YYYY-MM-DD 로 정규화)
+  cntrct_mth_nm TEXT,                      -- 계약방법 ("수의계약" 등)
+  prcure_se_nm TEXT,                       -- 조달구분 (용역/구매/공사)
+  prcure_bsns_se_nm TEXT,                  -- 조달사업구분
+  prcure_detail_se_nm TEXT,                -- 조달상세구분
+  raw_json TEXT NOT NULL,
+  fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_kc_cntrctor ON koica_contracts(cntrctor_nm);
+CREATE INDEX IF NOT EXISTS idx_kc_date ON koica_contracts(cntrct_date);
+CREATE INDEX IF NOT EXISTS idx_kc_prcure_se ON koica_contracts(prcure_se_nm);
+CREATE INDEX IF NOT EXISTS idx_kc_bsns_se ON koica_contracts(prcure_bsns_se_nm);

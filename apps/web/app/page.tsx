@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 import ProgramTable from "@/components/ProgramTable";
+import ProgramTableOda from "@/components/ProgramTableOda";
 import ActionBar from "@/components/ActionBar";
 import BoardGrid from "@/components/BoardGrid";
 import DepartmentTabs from "@/components/DepartmentTabs";
@@ -127,13 +128,23 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
           <SearchBar onSearch={doSearch} placeholderKeyword={deptLabel.placeholderKeyword} />
           <div>
-            <ProgramTable
-              programs={programs}
-              total={total}
-              selected={selected}
-              onToggle={toggle}
-              onToggleAll={toggleAll}
-            />
+            {department === "oda" ? (
+              <ProgramTableOda
+                programs={programs}
+                total={total}
+                selected={selected}
+                onToggle={toggle}
+                onToggleAll={toggleAll}
+              />
+            ) : (
+              <ProgramTable
+                programs={programs}
+                total={total}
+                selected={selected}
+                onToggle={toggle}
+                onToggleAll={toggleAll}
+              />
+            )}
             <ActionBar selectedCount={selected.size} running={running} onAnalyze={analyze} />
             <BoardGrid caseRows={visibleCaseRows} />
           </div>

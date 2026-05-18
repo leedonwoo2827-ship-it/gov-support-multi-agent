@@ -18,18 +18,32 @@
 
 | 에이전트 | 경영기획팀 | 교육사업부 | 해외사업부 | 기본 모델 |
 |---|---|---|---|---|
-| ✅ **자격평가** | 기업규모 · R&D · 인증 · 재무 · 영역 | 실적 · 강사풀 · 콘텐츠IP · LMS · **가격경쟁력**¹ | 국제실적 · 컨소시엄 · 다국어 · 전문성 · PQ | Gemini 2.5 Flash-Lite |
+| ✅ **자격평가** | 기업규모 · R&D · 인증 · 재무 · 영역 | 실적 · 강사풀 · 콘텐츠IP · LMS · **가격경쟁력**¹ | 국제실적 · 컨소시엄 · 다국어 · 전문성 · **ODA 가격경쟁력**² | Gemini 2.5 Flash-Lite |
 | 📝 **사업계획서 초안** | PSST 4섹션 (지원금 양식) | RFP 응답 (교수설계·평가) | 기술제안서 (DAC 5원칙) | Gemini 2.5 Flash-Lite |
 | 📂 **서류 체크리스트** | 사업자등록·완납·재무 | G2B 입찰자격·실적·강사CV | KOICA 등록·컨소시엄·영문CV | Gemini 2.5 Flash-Lite |
 | 📅 **마일스톤 일정표** | D-30~D-0 단일 단계 | RFP→제안서→평가→계약 | **PQ→본입찰 2단계** | Gemini 2.5 Flash-Lite |
 
-¹ 가격경쟁력 axis는 [나라장터 낙찰정보](https://www.data.go.kr/data/15129397/openapi.do) 통계 기반 — 발주처별 평균 낙찰률·낙찰업체·평균 참가업체수를 자격평가 코멘트에 자동 주입.
+¹ 교육사업부 가격경쟁력 axis는 [나라장터 낙찰정보](https://www.data.go.kr/data/15129397/openapi.do) 통계 기반 — 발주처별 평균 낙찰률·낙찰업체·평균 참가업체수를 자격평가 코멘트에 자동 주입.
+
+² 해외사업부 ODA 가격경쟁력 axis는 [KOICA 수의계약 목록조회](https://www.data.go.kr/data/15158380/openapi.do) (`/getVltrnCntrctList`) 통계 기반 — 분야 매칭 표본 수·평균 계약금액·주요 수의 파트너 집중도를 axis 코멘트에 주입. 기존 "PQ 통과 가능성" axis 는 axis 에서 빠지고 PQ 정량요건(자본금·매출·실적·컨소시엄)은 `matchedCriteria`/`unmetCriteria`/`riskFlags` 로 평가됩니다.
 
 > 💡 **모델 업그레이드 기준**: 4개 에이전트 모두 비용 최소화를 위해 `gemini-2.5-flash-lite`로 통일했어요. 운영 중 **서류 체크리스트에 "미상"이 자주 나오거나, 발급기관 라벨이 누락**되면 `packages/orchestrator/agents/doc-checklist.json`의 `model` 값을 **`gemini-2.5-flash`** 로 한 단계 올리면 정확도 개선됩니다. 자격평가/사업계획서의 추론 품질이 부족하면 `gemini-3-flash-preview` 까지 올릴 수 있어요.
 
-## 빠른 시작 (2개 터미널)
+## 빠른 시작
 
-cmd/PowerShell/bash 모두 동일하게 동작. **`pnpm dev` 한 줄은 cmd의 작은따옴표 처리 이슈로 권장하지 않음** (PowerShell·bash에서는 가능).
+기동 후 http://localhost:3000 접속.
+
+### 옵션 A — 터미널 1개 (PowerShell · bash · macOS · Linux 권장)
+
+```bash
+pnpm dev
+```
+
+오케스트레이터(`:8787`)와 웹(`:3000`)을 `pnpm -r --parallel`로 한 번에 띄웁니다. 로그가 한 화면에 섞여 나오므로 패키지 prefix(`@gov/orchestrator:` / `@gov/web:`)를 보고 구분하세요. 중단은 `Ctrl+C` 한 번이면 둘 다 종료.
+
+> ⚠️ **Windows `cmd.exe` 에서는 비권장** — `--filter="!@gov/mcp-tools"` 의 `!` 와 따옴표 처리 이슈로 스크립트가 실패할 수 있습니다. cmd 사용자는 옵션 B로.
+
+### 옵션 B — 터미널 2개 (cmd 포함 모든 셸에서 안정)
 
 ```bash
 # 터미널 1
@@ -38,7 +52,7 @@ pnpm dev:orchestrator
 pnpm dev:web
 ```
 
-기동 후 http://localhost:3000 접속.
+로그가 셸마다 분리되므로 디버깅 시 더 편리합니다.
 
 ## 빠른 설치 (한 번만)
 
@@ -64,9 +78,9 @@ pnpm --filter @gov/orchestrator run seed
 
 활용신청 권장 데이터셋 (data.go.kr):
 - [15125364](https://www.data.go.kr/data/15125364/openapi.do) 창업진흥원_K-Startup
-- [3039908](https://www.data.go.kr/data/3039908/openapi.do) 한국국제협력단_KOICA ODA 조달 정보
+- [15158380](https://www.data.go.kr/data/15158380/openapi.do) 한국국제협력단_KOICA ODA 조달 정보조회 (신규 GW. 입찰공고 `/getBidPblancInfoList` + **수의계약 `/getVltrnCntrctList`** 동시 사용 — 후자는 해외사업부 ODA 가격경쟁력 axis 입력. 구 ID 3039908은 2026-05 폐기)
 - [15129394](https://www.data.go.kr/data/15129394/openapi.do) 조달청_나라장터 입찰공고정보서비스
-- [15129397](https://www.data.go.kr/data/15129397/openapi.do) 조달청_나라장터 낙찰정보서비스 (경쟁사·낙찰률 분석용)
+- [15129397](https://www.data.go.kr/data/15129397/openapi.do) 조달청_나라장터 낙찰정보서비스 (교육사업부 가격경쟁력 axis 입력)
 
 신청 후 활성화에 1~24시간 소요될 수 있습니다 (`SERVICE KEY IS NOT REGISTERED` 응답 시 시간 대기).
 
@@ -94,12 +108,14 @@ pnpm --filter @gov/orchestrator run seed
 2. [🚀 전략 분석] → 자격평가의 **가격경쟁력 axis** 에 "OOO기관 최근 6개월 평균 낙찰률 87.3% (12건, 평균 참가 4.2개사). 주요 낙찰업체: …" 같은 객관 통계 자동 노출
 3. 사업계획서는 RFP 응답형, 마일스톤은 RFP→제안서→평가→계약 8단계
 
-**시나리오 3 — 해외사업부** (5분)
-> "KOICA 발주 베트남 ODA 사업, 우리 컨소시엄으로 PQ 통과 가능한가?"
+**시나리오 3 — 해외사업부** (5분) ⭐ KOICA 수의계약 통합 가치 입증
+> "KOICA가 이 분야 사업을 누구한테, 얼마에 발주해왔는지 + 우리 컨소시엄으로 PQ 통과 가능한가?"
 1. 해외사업부 탭 → KOICA 입찰공고 1건 선택
-2. 자격평가 axes: 국제개발 실적 · 컨소시엄 · 다국어 · ODA 전문성 · **PQ 통과 가능성**
-3. 마일스톤이 **PQ 마감 → 본입찰 마감 2단계 (10단계, 약 41일)**
-4. 서류 체크리스트에 컨소시엄 협약서 · 현지 MOU · 영문 CV 항목
+2. 자격평가 axes: 국제개발 실적 · 컨소시엄 · 다국어 · ODA 전문성 · **ODA 가격경쟁력**
+3. **ODA 가격경쟁력 axis** 에 "KOICA 수의계약 N건 (분야 매칭 키워드 "교육"). 평균 X.XX억 / 주요 파트너: A(N건), B(M건)" 같은 객관 통계 자동 노출. 표본 부족 시 "일반/제한경쟁 트랙 검토 권고" riskFlag.
+4. PQ 정량요건은 `matchedCriteria`/`unmetCriteria` 로 별도 표시
+5. 마일스톤이 **PQ 마감 → 본입찰 마감 2단계 (10단계, 약 41일)**
+6. 서류 체크리스트에 컨소시엄 협약서 · 현지 MOU · 영문 CV 항목
 
 ## 데이터 내보내기
 
@@ -109,7 +125,7 @@ pnpm --filter @gov/orchestrator run seed
 
 ## (구) 단축 스크립트
 
-`install.bat` · `dev.bat` · `seed.bat` 등 윈도우 배치 파일이 남아있지만, 위 2-터미널 방식이 더 안정적입니다 (cmd 따옴표 이슈 회피).
+`install.bat` · `dev.bat` · `seed.bat` 등 윈도우 배치 파일이 남아있지만, 위 빠른 시작(옵션 A 또는 B) 방식이 더 안정적입니다.
 
 ## 아키텍처
 
@@ -146,9 +162,9 @@ pnpm --filter @gov/orchestrator run seed
 │       └── src/
 │           ├── server.ts
 │           ├── db/{schema.sql,client.ts}
-│           ├── board/{posts,events,cases,programs,profiles,runs}.ts
-│           ├── routes/{search,cases,posts,runs,events,export,programs,profiles}.ts
-│           ├── agents/{loader,runner,toolBridge,orchestrator,mock}.ts
+│           ├── board/{posts,events,cases,programs,profiles,runs,awards,koicaContracts}.ts
+│           ├── routes/{search,cases,posts,runs,events,export,programs,profiles,admin}.ts
+│           ├── agents/{loader,runner,runner-gemini,toolBridge,orchestrator,mock}.ts
 │           └── lib/{ulid,sse,cost}.ts
 └── apps/
     └── web/                   # Next.js 15 대시보드 (정부24 풍)

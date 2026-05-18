@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "dev": "pnpm -r --parallel --filter='!@gov/mcp-tools' run dev",
+    "dev": "pnpm -r --parallel --filter=\"!@gov/mcp-tools\" run dev",
     "dev:orchestrator": "pnpm --filter @gov/orchestrator dev",
     "dev:web": "pnpm --filter @gov/web dev",
     "build": "pnpm -r run build",

@@ -1,10 +1,11 @@
 // 관리자 라우트 — 실데이터 시드 (대시보드 버튼에서 호출)
 
 import { Hono } from "hono";
-import { searchGovernmentSupport, fetchG2bScsbidList } from "@gov/mcp-tools";
+import { searchGovernmentSupport, fetchG2bScsbidList, fetchKoicaVltrnCntrctList } from "@gov/mcp-tools";
 import { getDb } from "../db/client.js";
 import { bulkUpsertPrograms, countPrograms } from "../board/programs.js";
 import { bulkUpsertAwards, countAwards } from "../board/awards.js";
+import { bulkUpsertKoicaContracts, countKoicaContracts } from "../board/koicaContracts.js";
 import { getApiKeys } from "../board/settings.js";
 import type { Program, Department } from "@gov/shared";
 
@@ -151,8 +152,20 @@ router.post("/seed-real", async (c) => {
           ? a.announcementId.slice(prefix.length)
           : a.announcementId;
         const raw = a.rawItem as Record<string, any>;
-        // 본문 추출 (소스별 필드명 다름)
-        const summary = raw?.pblancNm || raw?.biz_pbanc_nm || raw?.bidNtceNm || raw?.bsnsNm || null;
+        // KOICA list 응답엔 날짜·지역·업종이 없는 대신 진행상태/계약방법/낙찰자선정/입찰한도/공고번호가 있어,
+        // JSON 으로 묶어 summary 에 저장 → ProgramTableOda 가 파싱해서 전용 칸으로 렌더링.
+        const summary: string | null = a.source === "koica"
+          ? JSON.stringify({
+              status: raw?.BID_PROGRS_STTUS_NM ?? null,
+              cntrct: raw?.CNTRCT_MTH_NM ?? null,
+              scsbid: raw?.SCSBID_MTH_NM ?? null,
+              limit: raw?.BID_LMT_AMOUNT ?? null,
+              bsnsSe: raw?.PRCURE_BSNS_SE_CD_NM ?? null,
+              detailSe: raw?.PRCURE_DETAIL_SE_NM ?? null,
+              pblancNo: raw?.PBLANC_NO ?? null,
+              pblancOdr: raw?.PBLANC_ODR ?? null,
+            })
+          : (raw?.pblancNm || raw?.biz_pbanc_nm || raw?.bidNtceNm || raw?.bsnsNm || null);
         const rawText = [
           raw?.pblancCn,                                    // bizinfo 공고 내용
           raw?.pbanc_ctnt,                                  // kstartup 공고 내용
@@ -193,6 +206,7 @@ router.post("/seed-real", async (c) => {
         DELETE FROM cases;
         DELETE FROM programs;
         DELETE FROM bid_awards;
+        DELETE FROM koica_contracts;
       `);
     }
     const { inserted, skipped: skippedDb } = bulkUpsertPrograms(programs);
@@ -233,8 +247,31 @@ router.post("/seed-real", async (c) => {
           allWarnings.push(`낙찰정보(${cat}) 오류: ${msg}`);
         }
       }
+
+      // KOICA 수의계약 (ODA 가격경쟁력 axis 입력) — oda 부서일 때만
+      if (!departmentFilter || departmentFilter === "oda") {
+        try {
+          const r = await fetchKoicaVltrnCntrctList({
+            serviceKey: keys.publicDataServiceKey,
+            pageNo: 1,
+            numOfRows: 100,
+          });
+          if (!r.ok) {
+            awardsStats["koica-vltrn"] = { fetched: 0, inserted: 0, error: r.bodySnippet.slice(0, 120) };
+            allWarnings.push(`KOICA 수의계약 HTTP ${r.httpStatus} — ${r.bodySnippet.slice(0, 120)}`);
+          } else {
+            const { inserted: ki } = bulkUpsertKoicaContracts(r.items);
+            awardsStats["koica-vltrn"] = { fetched: r.items.length, inserted: ki };
+          }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          awardsStats["koica-vltrn"] = { fetched: 0, inserted: 0, error: msg };
+          allWarnings.push(`KOICA 수의계약 오류: ${msg}`);
+        }
+      }
     }
     const awardsTotalAfter = countAwards();
+    const koicaContractsTotalAfter = countKoicaContracts();
 
     logImport({
       kind: "real",
@@ -256,6 +293,7 @@ router.post("/seed-real", async (c) => {
       sourceStats: result.sourceStats,
       awardsStats,
       awardsTotalAfter,
+      koicaContractsTotalAfter,
       warnings: allWarnings,
     });
   } catch (err) {

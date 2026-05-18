@@ -219,11 +219,11 @@ export default function SettingsPage() {
 
             {diagnostics.awardsStats && Object.keys(diagnostics.awardsStats).length > 0 && (
               <div className="mb-3">
-                <p className="text-sm font-medium text-blue-900 mb-1">낙찰정보(g2b-scsbid) 부가 수집</p>
+                <p className="text-sm font-medium text-blue-900 mb-1">가격경쟁력 axis 입력 데이터 수집 (G2B 낙찰 + KOICA 수의계약)</p>
                 <table className="w-full text-xs">
                   <thead className="bg-blue-100 border-b border-blue-200">
                     <tr>
-                      <th className="text-left p-2">카테고리</th>
+                      <th className="text-left p-2">소스</th>
                       <th className="text-right p-2">받은 건수</th>
                       <th className="text-right p-2">DB 적재</th>
                       <th className="text-left p-2">에러</th>
@@ -240,9 +240,10 @@ export default function SettingsPage() {
                     ))}
                   </tbody>
                 </table>
-                {diagnostics.awardsTotalAfter !== undefined && (
-                  <p className="text-xs text-blue-700 mt-1">현재 bid_awards 누적: {diagnostics.awardsTotalAfter}건</p>
-                )}
+                <p className="text-xs text-blue-700 mt-1">
+                  {diagnostics.awardsTotalAfter !== undefined && <>bid_awards (edu 가격경쟁력 입력): {diagnostics.awardsTotalAfter}건</>}
+                  {diagnostics.koicaContractsTotalAfter !== undefined && <> · koica_contracts (ODA 가격경쟁력 입력): {diagnostics.koicaContractsTotalAfter}건</>}
+                </p>
               </div>
             )}
 

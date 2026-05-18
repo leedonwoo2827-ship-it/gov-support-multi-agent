@@ -4,6 +4,11 @@ import type { AgentId, CompanyProfile, Program, DocItem } from "@gov/shared";
 import { AGENT_PAYLOAD_SCHEMAS } from "@gov/shared";
 import { getAnthropicKey, getGeminiKey } from "../board/settings.js";
 import { getAwardStatsByAgency, type AwardStats } from "../board/awards.js";
+import {
+  getKoicaContractStats,
+  getKoicaContractGlobalStats,
+  type KoicaContractStats,
+} from "../board/koicaContracts.js";
 
 /**
  * Mock 모드 진입 조건: MOCK_AGENTS=1 강제, OR Anthropic/Gemini 키 둘 다 없을 때.
@@ -77,15 +82,36 @@ function mockEligibility(p: CompanyProfile, prog: Program) {
   const req = parseBidRequirements(prog.rawText);
   const dept = p.department ?? "planning";
 
-  // A1: 발주처별 낙찰률 통계 조회 (입찰형 부서 edu/oda 에서만 의미)
+  // A1: 발주처별 낙찰률 통계 조회 (edu 가격경쟁력 axis 입력)
   let awardStats: AwardStats | null = null;
-  if ((dept === "edu" || dept === "oda") && prog.agency) {
+  if (dept === "edu" && prog.agency) {
     // 발주처명 첫 4글자 정도로 LIKE 검색 (예: "한국금융연수원" → "한국금융")
     const agencyKey = prog.agency.slice(0, Math.min(prog.agency.length, 4));
     try {
       awardStats = getAwardStatsByAgency(agencyKey, dept);
     } catch {
       awardStats = null;
+    }
+  }
+
+  // A2: KOICA 수의계약 통계 (oda 가격경쟁력 axis 입력)
+  // 분야/사업명 키워드로 매칭 — 공고 분야 우선, 부족하면 제목 첫 단어 시도.
+  let koicaStats: KoicaContractStats | null = null;
+  if (dept === "oda") {
+    const candidates: string[] = [];
+    if (prog.field) candidates.push(prog.field);
+    if (prog.title) {
+      // 제목에서 의미있는 키워드 후보 추출 — 한자/영문 단어, 또는 첫 2어절
+      const firstWords = prog.title.split(/\s+/).filter(w => w.length >= 2).slice(0, 2);
+      candidates.push(...firstWords);
+    }
+    for (const kw of candidates) {
+      try {
+        const s = getKoicaContractStats(kw);
+        if (s && s.count > 0) { koicaStats = s; break; }
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -150,7 +176,7 @@ function mockEligibility(p: CompanyProfile, prog: Program) {
   const verdict: "적합" | "부분적합" | "부적합" =
     score >= 75 ? "적합" : score >= 55 ? "부분적합" : "부적합";
 
-  // 가격경쟁력 axis — 낙찰 통계 있으면 데이터 기반 점수·코멘트, 없으면 기본
+  // 가격경쟁력 axis (edu) — G2B 낙찰 통계 기반
   function priceAxis(maxScore: number): { name: string; score: number; max: number; comment: string } {
     if (!awardStats || awardStats.avgRate === null) {
       return { name: "가격경쟁력", score: 14, max: maxScore, comment: "발주처 낙찰 통계 데이터 미수집 — [📥 실데이터 적재] 후 객관 분석 가능" };
@@ -166,6 +192,38 @@ function mockEligibility(p: CompanyProfile, prog: Program) {
     return { name: "가격경쟁력", score, max: maxScore, comment };
   }
 
+  // ODA 가격경쟁력 axis (oda) — KOICA 수의계약 통계 기반
+  // 신호 해석:
+  //  - count 多 + topContractors 집중도 高: 시장 좁고 기존 파트너 강함 → 신규 진입 어려움(감점)
+  //  - count 中 + 다양한 파트너: 진입 가능성 있음(중점)
+  //  - count 少: KOICA 가 해당 분야 수의계약을 거의 안 함 → 일반/제한경쟁 트랙으로 가야 함(중점)
+  //  - 데이터 없음: [📥 실데이터 적재] 후 분석 가능(기본점)
+  function odaPriceAxis(maxScore: number): { name: string; score: number; max: number; comment: string } {
+    if (!koicaStats || koicaStats.count === 0) {
+      const global = (() => { try { return getKoicaContractGlobalStats(); } catch { return { count: 0, avgAmt: null, topContractors: [] as { name: string; count: number }[] }; } })();
+      if (global.count === 0) {
+        return { name: "ODA 가격경쟁력", score: 12, max: maxScore, comment: "KOICA 수의계약 데이터 미수집 — [📥 실데이터 적재] 후 객관 분석 가능" };
+      }
+      const winners = global.topContractors.slice(0, 3).map(w => `${w.name}(${w.count}건)`).join(", ") || "—";
+      return { name: "ODA 가격경쟁력", score: 12, max: maxScore, comment: `해당 분야 KOICA 수의계약 사례 부재 — 일반/제한경쟁 트랙 검토 필요. KOICA 전체 수의 ${global.count}건 평균 ${global.avgAmt ? `${(global.avgAmt / 1e8).toFixed(2)}억` : "?"} / 주요 파트너: ${winners}` };
+    }
+    const { count, avgAmt, topContractors } = koicaStats;
+    const topShare = topContractors.length > 0 ? topContractors[0].count / count : 0;
+    // 점수 로직: 분야 적합성(count) + 진입 가능성(파트너 다양성)
+    let score: number;
+    if (count >= 5 && topShare < 0.5) score = Math.round(maxScore * 0.75);        // 시장 형성·다양성 ↑
+    else if (count >= 5 && topShare >= 0.5) score = Math.round(maxScore * 0.50);   // 시장은 있으나 강자 집중
+    else if (count >= 2) score = Math.round(maxScore * 0.60);                       // 형성 초기
+    else score = Math.round(maxScore * 0.45);                                       // 1건뿐 — 사례 부족
+    // 우리 회사가 topContractors 에 있으면 가점
+    const ours = topContractors.find(w => w.name.includes(p.companyName) || p.companyName.includes(w.name));
+    if (ours) { score = Math.min(maxScore, score + Math.round(maxScore * 0.15)); }
+    const winners = topContractors.slice(0, 3).map(w => `${w.name}(${w.count}건)`).join(", ") || "—";
+    const avgStr = avgAmt ? `${(avgAmt / 1e8).toFixed(2)}억` : "?";
+    const comment = `KOICA 수의계약 ${count}건 (분야 매칭 키워드: "${koicaStats.keyword}"). 평균 ${avgStr} / 주요 파트너: ${winners}${ours ? ` · ${p.companyName} 기존 수의 이력 보유(+가점)` : ""}`;
+    return { name: "ODA 가격경쟁력", score, max: maxScore, comment };
+  }
+
   // 부서별 5축
   const axes = dept === "edu"
     ? [
@@ -178,27 +236,12 @@ function mockEligibility(p: CompanyProfile, prog: Program) {
     : dept === "oda"
     ? (() => {
         const odaCount = p.pastPerformance.filter(pp => pp.clientType.includes("KOICA") || pp.clientType.includes("ODA")).length;
-        // PQ 통과 점수 — 추출된 정량 요건 충족 여부에 따라 가점/감점
-        let pqScore = 12;
-        const pqComments: string[] = [];
-        if (req.minRevenueKrw) {
-          if (p.annualRevenueKrw >= req.minRevenueKrw) { pqScore += 3; pqComments.push(`매출 OK (${(req.minRevenueKrw / 1e8).toFixed(0)}억≤)`); }
-          else { pqScore -= 4; pqComments.push(`매출 부족 (${(p.annualRevenueKrw / 1e8).toFixed(0)} < ${(req.minRevenueKrw / 1e8).toFixed(0)}억)`); }
-        }
-        if (req.minPerformanceCount !== undefined) {
-          if (odaCount >= req.minPerformanceCount) { pqScore += 3; pqComments.push(`실적 OK (${odaCount}≥${req.minPerformanceCount}건)`); }
-          else { pqScore -= 4; pqComments.push(`실적 부족 (${odaCount}<${req.minPerformanceCount}건)`); }
-        }
-        if (req.requiresConsortium || req.isInternationalCompetition) {
-          if (p.consortiumPartners.length > 0) { pqScore += 2; pqComments.push("컨소시엄 OK"); }
-          else { pqScore -= 3; pqComments.push("컨소시엄 부재"); }
-        }
         return [
           { name: "국제개발 실적", score: Math.min(25, 8 + odaCount * 5), max: 25, comment: `ODA 직접 수행 이력 ${odaCount}건` },
           { name: "컨소시엄·현지 파트너", score: Math.min(20, 8 + p.consortiumPartners.length * 4), max: 20, comment: p.consortiumPartners.length ? `${p.consortiumPartners.join(", ")}` : "현지 파트너 확보 필요" },
           { name: "다국어 운영 역량", score: Math.min(15, 5 + p.languages.length * 3), max: 15, comment: p.languages.join(", ") || "언어 풀 미상" },
           { name: "ODA 분야 전문성", score: 15, max: 20, comment: `${prog.field ?? "공고 분야"} 분야 전문성` },
-          { name: "PQ 통과 가능성", score: Math.max(4, Math.min(20, pqScore)), max: 20, comment: pqComments.length ? pqComments.join(", ") : "정량요건 미명시" },
+          odaPriceAxis(20),
         ];
       })()
     : [

@@ -77,12 +77,15 @@ export { fetchBizinfoList } from "./govSupport/clients/bizinfoSupport.js";
 export { fetchKstartupList } from "./govSupport/clients/kstartupSupport.js";
 export { fetchExtPblancInfo } from "./govSupport/clients/smes24PublicNotice.js";
 export { fetchG2bBidList } from "./govSupport/clients/g2bBids.js";
-export { fetchKoicaOdaList } from "./govSupport/clients/koicaOda.js";
+export { fetchKoicaOdaList, fetchKoicaVltrnCntrctList } from "./govSupport/clients/koicaOda.js";
 export { fetchG2bScsbidList } from "./govSupport/clients/g2bScsbid.js";
 
 // ── 신규 데이터 타입 ─────────────────────────────────────────────────
 export type { G2bBidItem, G2bFetchParams, G2bFetchResult } from "./govSupport/types/g2b.js";
-export type { KoicaOdaItem, KoicaFetchParams, KoicaFetchResult } from "./govSupport/types/koica.js";
+export type {
+  KoicaOdaItem, KoicaFetchParams, KoicaFetchResult,
+  KoicaVltrnCntrctItem, KoicaVltrnFetchParams, KoicaVltrnFetchResult,
+} from "./govSupport/types/koica.js";
 export type { G2bScsbidItem, G2bScsbidFetchParams, G2bScsbidFetchResult } from "./govSupport/types/g2bScsbid.js";
 
 // ── 정규화/디듑 ──────────────────────────────────────────────────────
